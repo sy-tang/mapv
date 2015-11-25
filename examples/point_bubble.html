@@ -44,6 +44,7 @@ for (var i = 0; i < cityData.provinces.length; i++) {
 function getCityCenter(citys) {
     var data = [];
     for (var i = 0; i < citys.length; i++) {
+        if (Math.random() < 0.8) continue;
         var city = citys[i];
         var center = city.g.split('|')[0];
         center = center.split(',');
@@ -86,6 +87,9 @@ var layer = new Mapv.Layer({
         strokeStyle: 'rgba(255, 255, 255, 1)', // 描边颜色，不设置则不描边
         lineWidth: 3, // 描边宽度，不设置则不描边
         fillStyle: "rgba(255, 255, 50, 0.8)" // 填充颜色
+    },
+    elementClickedHandler: function(element, index) {
+        console.log("%d: %o", index, element);
     }
 });
 

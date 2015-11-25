@@ -1,7 +1,6 @@
 /**
  * @author nikai (@胖嘟嘟的骨头, nikai@baidu.com)
  */
-
 function Drawer(layer) {
 
     Class.call(this);
@@ -17,6 +16,9 @@ function Drawer(layer) {
             size: 2
         }
     });
+
+    // store all the path of element drawed in the layer, used for hit-detection
+    this._elementPaths = [];  
 
     this.dataRange = new DataRange(layer);
 
@@ -47,6 +49,8 @@ Drawer.prototype.beginDrawCanvasMap = function () {
     var drawOptions = this.getDrawOptions();
     var ctx = this.getCtx();
     var pixelRatio = util.getPixelRatio(ctx);
+
+    this._elementPaths = [];
 
     ctx.save();
 
@@ -140,3 +144,9 @@ Drawer.prototype.getRadius = function () {
 
     return radius;
 }
+
+Drawer.prototype.getElementPaths = function() {
+    return this._elementPaths;
+}
+
+

@@ -30,10 +30,14 @@ CanvasLayer.prototype.initialize = function(map){
     this.adjustSize();
     map.getPanes()[this.paneName].appendChild(canvas);
     var that = this;
+
     map.addEventListener('resize', function () {
         that.adjustSize();
         that.draw();
     });
+
+    canvas.addEventListener('click', this.options.clickHandler);
+
     return this.canvas;
 }
 

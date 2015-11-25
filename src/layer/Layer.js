@@ -24,7 +24,8 @@ function Layer (options) {
         animation: false,
         geometry: null,
         dataRangeControl: true,
-        zIndex: 1
+        zIndex: 1,
+        elementClickedHandler: null
     }, options));
 
     this.dataRangeControl = new DataRangeControl();
@@ -58,6 +59,33 @@ util.extend(Layer.prototype, {
             paneName : this.getPaneName(),
             update: function () {
                 that.draw();
+            },
+            clickHandler: function(e) {
+                var rect = this.getBoundingClientRect(),
+                    x = e.clientX - rect.left,
+                    y = e.clientY - rect.top,
+                    drawer = that._getDrawer();
+
+                if (drawer) {
+                    // find out the click point in which path
+                    var paths = drawer.getElementPaths();
+                    var ctx = that.getCtx();
+                    var which = 0;
+
+                    for (var i = 0; i < paths.length; i++) {
+                        if (ctx.isPointInPath(paths[i], x, y)) {
+                            // bingo!
+                            var data = that.getData();
+                            var elementClickedHandler = that.getElementClickedHandler();
+                            if (elementClickedHandler && typeof(elementClickedHandler) == 'function') {
+                                elementClickedHandler(data[i], i);
+                            }
+                            break;
+                        }
+                    }
+
+
+                }
             },
             elementTag: "canvas"
         });

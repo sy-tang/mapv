@@ -997,10 +997,14 @@ CanvasLayer.prototype.initialize = function (map) {
     this.adjustSize();
     map.getPanes()[this.paneName].appendChild(canvas);
     var that = this;
+
     map.addEventListener('resize', function () {
         that.adjustSize();
         that.draw();
     });
+
+    canvas.addEventListener('click', this.options.clickHandler);
+
     return this.canvas;
 };
 
@@ -1089,7 +1093,8 @@ function Layer(options) {
         animation: false,
         geometry: null,
         dataRangeControl: true,
-        zIndex: 1
+        zIndex: 1,
+        elementClickedHandler: null
     }, options));
 
     this.dataRangeControl = new DataRangeControl();
@@ -1122,6 +1127,31 @@ util.extend(Layer.prototype, {
             paneName: this.getPaneName(),
             update: function update() {
                 that.draw();
+            },
+            clickHandler: function clickHandler(e) {
+                var rect = this.getBoundingClientRect(),
+                    x = e.clientX - rect.left,
+                    y = e.clientY - rect.top,
+                    drawer = that._getDrawer();
+
+                if (drawer) {
+                    // find out the click point in which path
+                    var paths = drawer.getElementPaths();
+                    var ctx = that.getCtx();
+                    var which = 0;
+
+                    for (var i = 0; i < paths.length; i++) {
+                        if (ctx.isPointInPath(paths[i], x, y)) {
+                            // bingo!
+                            var data = that.getData();
+                            var elementClickedHandler = that.getElementClickedHandler();
+                            if (elementClickedHandler && typeof elementClickedHandler == 'function') {
+                                elementClickedHandler(data[i], i);
+                            }
+                            break;
+                        }
+                    }
+                }
             },
             elementTag: "canvas"
         });
@@ -2325,7 +2355,6 @@ OptionalData.prototype.bindEvent = function () {
 /**
  * @author nikai (@胖嘟嘟的骨头, nikai@baidu.com)
  */
-
 'use strict';
 
 function Drawer(layer) {
@@ -2343,6 +2372,9 @@ function Drawer(layer) {
             size: 2
         }
     });
+
+    // store all the path of element drawed in the layer, used for hit-detection
+    this._elementPaths = [];
 
     this.dataRange = new DataRange(layer);
 
@@ -2372,6 +2404,8 @@ Drawer.prototype.beginDrawCanvasMap = function () {
     var drawOptions = this.getDrawOptions();
     var ctx = this.getCtx();
     var pixelRatio = util.getPixelRatio(ctx);
+
+    this._elementPaths = [];
 
     ctx.save();
 
@@ -2440,6 +2474,10 @@ Drawer.prototype.getRadius = function () {
 
     return radius;
 };
+
+Drawer.prototype.getElementPaths = function () {
+    return this._elementPaths;
+};
 /**
  * @author nikai (@胖嘟嘟的骨头, nikai@baidu.com)
  */
@@ -2466,12 +2504,26 @@ BubbleDrawer.prototype.drawMap = function () {
     for (var i = 0, len = data.length; i < len; i++) {
         var item = data[i];
         var size = this.dataRange.getSize(item.count);
-        ctx.beginPath();
-        ctx.arc(item.px, item.py, size, 0, Math.PI * 2, false);
-        ctx.closePath();
-        ctx.fill();
+        // ctx.beginPath();
+        // ctx.arc(item.px, item.py, size, 0, Math.PI * 2, false);
+        // ctx.closePath();
+        // ctx.fill();
+        // if (drawOptions.strokeStyle) {
+        //     ctx.stroke();
+        // }
+        var path = new Path2D();
+        // ctx.beginPath();
+        path.arc(item.px, item.py, size, 0, Math.PI * 2, false);
+        // ctx.closePath();
+        ctx.fill(path);
         if (drawOptions.strokeStyle) {
-            ctx.stroke();
+            ctx.stroke(path);
+        }
+
+        this._elementPaths.push(path);
+        if (i == 0) {
+            // debugger;
+            console.log(item.px + " " + item.py);
         }
     }
 
