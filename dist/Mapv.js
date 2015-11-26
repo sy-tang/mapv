@@ -1005,6 +1005,8 @@ CanvasLayer.prototype.initialize = function (map) {
 
     canvas.addEventListener('click', this.options.clickHandler);
 
+    canvas.addEventListener('mousemove', this.options.hoverHandler);
+
     return this.canvas;
 };
 
@@ -1094,8 +1096,18 @@ function Layer(options) {
         geometry: null,
         dataRangeControl: true,
         zIndex: 1,
-        elementClickedHandler: null
+
+        // @handler: function(element, index)
+        // @element: hovered/clicked data item, element is null when hover out
+        // @index: the position of hovered/clicked item
+        elementClickedHandler: null,
+        elementHoveredHandler: null
+
     }, options));
+
+    // hold the element drawed in the layer that is hovering
+    // struct: {index: }
+    this._hoveredElement = null;
 
     this.dataRangeControl = new DataRangeControl();
     this.Scale = new DrawScale();
@@ -1131,27 +1143,16 @@ util.extend(Layer.prototype, {
             clickHandler: function clickHandler(e) {
                 var rect = this.getBoundingClientRect(),
                     x = e.clientX - rect.left,
-                    y = e.clientY - rect.top,
-                    drawer = that._getDrawer();
+                    y = e.clientY - rect.top;
 
-                if (drawer) {
-                    // find out the click point in which path
-                    var paths = drawer.getElementPaths();
-                    var ctx = that.getCtx();
-                    var which = 0;
+                that._resposneToInterect(x, y, 'click');
+            },
+            hoverHandler: function hoverHandler(e) {
+                var rect = this.getBoundingClientRect(),
+                    x = e.clientX - rect.left,
+                    y = e.clientY - rect.top;
 
-                    for (var i = 0; i < paths.length; i++) {
-                        if (ctx.isPointInPath(paths[i], x, y)) {
-                            // bingo!
-                            var data = that.getData();
-                            var elementClickedHandler = that.getElementClickedHandler();
-                            if (elementClickedHandler && typeof elementClickedHandler == 'function') {
-                                elementClickedHandler(data[i], i);
-                            }
-                            break;
-                        }
-                    }
-                }
+                that._resposneToInterect(x, y, 'hover');
             },
             elementTag: "canvas"
         });
@@ -1428,7 +1429,52 @@ util.extend(Layer.prototype, {
     dataRangeControl_changed: function dataRangeControl_changed() {
         this.updateControl();
         this._getDrawer().notify('drawOptions');
+    },
+
+    hoveredElement_changed: function hoveredElement_changed() {
+        console.log("hovered element changed");
+        this.draw();
+    },
+
+    _resposneToInterect: function _resposneToInterect(x, y, type) {
+        var drawer = this._getDrawer();
+        if (drawer) {
+            // find out the click point in which path
+            var paths = drawer.getElementPaths();
+            var ctx = this.getCtx();
+
+            if (type == 'hover' && this._hoveredElement && this._hoveredElement.index) {
+                if (ctx.isPointInPath(paths[this._hoveredElement.index], x, y)) {
+                    // already trigged!
+                    return;
+                }
+            }
+
+            var newHoveredElement = null;
+            for (var i = 0; i < paths.length; i++) {
+                if (ctx.isPointInPath(paths[i], x, y)) {
+                    // bingo!
+                    var data = this.getData();
+                    newHoveredElement = { index: i, data: data[i] };
+                    break;
+                }
+            }
+
+            if (this._hoveredElement != newHoveredElement) {
+                this._hoveredElement = newHoveredElement;
+                this.notify("hoveredElement");
+                var cb = this._getHandler(type);
+                if (cb && typeof cb == 'function') {
+                    if (newHoveredElement) cb(data[newHoveredElement.index], newHoveredElement.index);else cb(null);
+                }
+            }
+        }
+    },
+
+    _getHandler: function _getHandler(type) {
+        if (type == 'click') return this.getElementClickedHandler();else if (type == 'hover') return this.getElementHoveredHandler();else return null;
     }
+
 });
 /**
  * @file this file is to supprot customer data
@@ -2370,7 +2416,8 @@ function Drawer(layer) {
         animationOptions: {},
         drawOptions: {
             size: 2
-        }
+        },
+        hoveredElement: null
     });
 
     // store all the path of element drawed in the layer, used for hit-detection
@@ -2383,6 +2430,7 @@ function Drawer(layer) {
     this.bindTo('drawOptions', layer);
     this.bindTo('mapv', layer);
     this.bindTo('map', layer);
+    this.bindTo('hoveredElement', layer);
 }
 
 util.inherits(Drawer, Class);
@@ -2511,20 +2559,17 @@ BubbleDrawer.prototype.drawMap = function () {
         // if (drawOptions.strokeStyle) {
         //     ctx.stroke();
         // }
+        var hoveredElement = this.getHoveredElement();
         var path = new Path2D();
         // ctx.beginPath();
         path.arc(item.px, item.py, size, 0, Math.PI * 2, false);
         // ctx.closePath();
         ctx.fill(path);
-        if (drawOptions.strokeStyle) {
+        if (hoveredElement && hoveredElement.index == i && drawOptions.strokeStyle) {
             ctx.stroke(path);
         }
 
         this._elementPaths.push(path);
-        if (i == 0) {
-            // debugger;
-            console.log(item.px + " " + item.py);
-        }
     }
 
     this.endDrawMap();

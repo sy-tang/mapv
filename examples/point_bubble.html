@@ -89,7 +89,10 @@ var layer = new Mapv.Layer({
         fillStyle: "rgba(255, 255, 50, 0.8)" // 填充颜色
     },
     elementClickedHandler: function(element, index) {
-        console.log("%d: %o", index, element);
+        console.log("Clicked %d: %o", index, element);
+    },
+    elementHoveredHandler: function(element, index) {
+        console.log("Hovered %d: %o", index, element);
     }
 });
 

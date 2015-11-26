@@ -38,6 +38,8 @@ CanvasLayer.prototype.initialize = function(map){
 
     canvas.addEventListener('click', this.options.clickHandler);
 
+    canvas.addEventListener('mousemove', this.options.hoverHandler);
+
     return this.canvas;
 }
 

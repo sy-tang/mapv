@@ -14,11 +14,12 @@ function Drawer(layer) {
         animationOptions: {},
         drawOptions: {
             size: 2
-        }
+        },
+        hoveredElement: null
     });
 
     // store all the path of element drawed in the layer, used for hit-detection
-    this._elementPaths = [];  
+    this._elementPaths = [];
 
     this.dataRange = new DataRange(layer);
 
@@ -27,6 +28,7 @@ function Drawer(layer) {
     this.bindTo('drawOptions', layer);
     this.bindTo('mapv', layer);
     this.bindTo('map', layer);
+    this.bindTo('hoveredElement', layer);
 
 }
 
@@ -147,6 +149,7 @@ Drawer.prototype.getRadius = function () {
 
 Drawer.prototype.getElementPaths = function() {
     return this._elementPaths;
-}
+};
+
 
 

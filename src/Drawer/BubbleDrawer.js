@@ -30,20 +30,17 @@ BubbleDrawer.prototype.drawMap = function () {
         // if (drawOptions.strokeStyle) {
         //     ctx.stroke();
         // }
+        var hoveredElement = this.getHoveredElement();
         var path = new Path2D();
         // ctx.beginPath();
         path.arc(item.px, item.py, size, 0, Math.PI * 2, false);
         // ctx.closePath();
         ctx.fill(path);
-        if (drawOptions.strokeStyle) {
+        if (hoveredElement && hoveredElement.index == i && drawOptions.strokeStyle) {
             ctx.stroke(path);
         }
 
         this._elementPaths.push(path);
-        if (i == 0) {
-            // debugger;
-            console.log(item.px + " " + item.py);
-        }
     }
 
     this.endDrawMap();
