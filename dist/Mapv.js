@@ -918,6 +918,200 @@ util.extend(TimeLine.prototype, {});
 
 var timeLine = new TimeLine({});
 /**
+ *
+ * Version: 0.2.0-beta.2
+ * Author: Gianluca Guarini
+ * Contact: gianluca.guarini@gmail.com
+ * Website: http://www.gianlucaguarini.com/
+ * Twitter: @gianlucaguarini
+ *
+ * Copyright (c) Gianluca Guarini
+ *
+ * Permission is hereby granted, free of charge, to any person
+ * obtaining a copy of this software and associated documentation
+ * files (the "Software"), to deal in the Software without
+ * restriction, including without limitation the rights to use,
+ * copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following
+ * conditions:
+ *
+ * The above copyright notice and this permission notice shall be
+ * included in all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+ * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+ * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+ * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+ * OTHER DEALINGS IN THE SOFTWARE.
+ **/
+
+'use strict';
+
+(function (doc, win) {
+  'use strict';
+  if (typeof doc.createEvent !== 'function') return false; // no tap events here
+  // helpers
+  var useJquery = typeof jQuery !== 'undefined',
+      msEventType = function msEventType(type) {
+    var lo = type.toLowerCase(),
+        ms = 'MS' + type;
+    return navigator.msPointerEnabled ? ms : lo;
+  },
+      pointerEnabled = !!navigator.pointerEnabled || navigator.msPointerEnabled,
+      isTouch = function isTouch() {
+    return 'ontouchstart' in window || window.DocumentTouch && document instanceof DocumentTouch || pointerEnabled;
+  },
+      isValid = function isValid(e) {
+    var _isTouch = isTouch(),
+        isMouse = /mouse/.test(e.type);
+    return !isMouse && _isTouch && /touch/.test(e.type) && !pointerEnabled || !isMouse && _isTouch && !/touch/.test(e.type) && pointerEnabled || isMouse && !_isTouch;
+  },
+      touchevents = {
+    touchstart: msEventType('PointerDown') + ' touchstart',
+    touchend: msEventType('PointerUp') + ' touchend',
+    touchmove: msEventType('PointerMove') + ' touchmove'
+  },
+      setListener = function setListener(elm, events, callback) {
+    var eventsArray = events.split(' '),
+        i = eventsArray.length;
+
+    while (i--) {
+      elm.addEventListener(eventsArray[i], callback, false);
+    }
+  },
+      getPointerEvent = function getPointerEvent(event) {
+    return event.targetTouches ? event.targetTouches[0] : event;
+  },
+      getTimestamp = function getTimestamp() {
+    return new Date().getTime();
+  },
+      sendEvent = function sendEvent(elm, eventName, originalEvent, data) {
+    var customEvent = doc.createEvent('Event');
+    customEvent.originalEvent = originalEvent;
+    data = data || {};
+    data.x = currX;
+    data.y = currY;
+    data.distance = data.distance;
+
+    // jquery
+    if (useJquery) {
+      customEvent = $.Event(eventName, { originalEvent: originalEvent });
+      jQuery(elm).trigger(customEvent, data);
+    }
+
+    // addEventListener
+    if (customEvent.initEvent) {
+      for (var key in data) {
+        customEvent[key] = data[key];
+      }
+      customEvent.initEvent(eventName, true, true);
+      elm.dispatchEvent(customEvent);
+    }
+
+    // inline
+    if (elm['on' + eventName]) elm['on' + eventName](customEvent);
+  },
+      onTouchStart = function onTouchStart(e) {
+    if (!isValid(e)) return;
+    var pointer = getPointerEvent(e);
+
+    console.log("touch start");
+
+    // caching the current x
+    cachedX = currX = pointer.pageX;
+    // caching the current y
+    cachedY = currY = pointer.pageY;
+
+    longtapTimer = setTimeout(function () {
+      sendEvent(e.target, 'longtap', e);
+      target = e.target;
+    }, longtapThreshold);
+
+    // we will use these variables on the touchend events
+    timestamp = getTimestamp();
+    tapNum++;
+  },
+      onTouchEnd = function onTouchEnd(e) {
+    if (!isValid(e)) return;
+    var eventsArr = [],
+        now = getTimestamp(),
+        deltaY = cachedY - currY,
+        deltaX = cachedX - currX;
+
+    // clear the previous timer in case it was set
+    clearTimeout(dblTapTimer);
+    clearTimeout(longtapTimer);
+
+    if (deltaX <= -swipeThreshold) eventsArr.push('swiperight');
+
+    if (deltaX >= swipeThreshold) eventsArr.push('swipeleft');
+
+    if (deltaY <= -swipeThreshold) eventsArr.push('swipedown');
+
+    if (deltaY >= swipeThreshold) eventsArr.push('swipeup');
+
+    if (eventsArr.length) {
+      for (var i = 0; i < eventsArr.length; i++) {
+        var eventName = eventsArr[i];
+        sendEvent(e.target, eventName, e, {
+          distance: {
+            x: Math.abs(deltaX),
+            y: Math.abs(deltaY)
+          }
+        });
+      }
+    } else {
+
+      if (cachedX >= currX - tapPrecision && cachedX <= currX + tapPrecision && cachedY >= currY - tapPrecision && cachedY <= currY + tapPrecision) {
+        if (timestamp + tapThreshold - now >= 0) {
+          // Here you get the Tap event
+          sendEvent(e.target, tapNum === 2 && target === e.target ? 'dbltap' : 'tap', e);
+          target = e.target;
+        }
+      }
+
+      // reset the tap counter
+      dblTapTimer = setTimeout(function () {
+        tapNum = 0;
+      }, dbltapThreshold);
+    }
+  },
+      onTouchMove = function onTouchMove(e) {
+    if (!isValid(e)) return;
+    var pointer = getPointerEvent(e);
+    currX = pointer.pageX;
+    currY = pointer.pageY;
+  },
+      swipeThreshold = win.SWIPE_THRESHOLD || 100,
+      tapThreshold = win.TAP_THRESHOLD || 150,
+      // range of time where a tap event could be detected
+  dbltapThreshold = win.DBL_TAP_THRESHOLD || 200,
+      // delay needed to detect a double tap
+  longtapThreshold = win.LONG_TAP_THRESHOLD || 1000,
+      // delay needed to detect a long tap
+  tapPrecision = win.TAP_PRECISION / 2 || 60 / 2,
+      // touch events boundaries ( 60px by default )
+  justTouchEvents = win.JUST_ON_TOUCH_DEVICES,
+      tapNum = 0,
+      currX,
+      currY,
+      cachedX,
+      cachedY,
+      timestamp,
+      target,
+      dblTapTimer,
+      longtapTimer;
+
+  //setting the events listeners
+  setListener(doc, touchevents.touchstart + (justTouchEvents ? '' : ' mousedown'), onTouchStart);
+  setListener(doc, touchevents.touchend + (justTouchEvents ? '' : ' mouseup'), onTouchEnd);
+  setListener(doc, touchevents.touchmove + (justTouchEvents ? '' : ' mousemove'), onTouchMove);
+})(document, window);
+/**
  * @author nikai (@胖嘟嘟的骨头, nikai@baidu.com)
  * 地图可视化库，目前依赖与百度地图api，在百度地图api上展示点数据
  *
@@ -1007,6 +1201,8 @@ CanvasLayer.prototype.initialize = function (map) {
 
     canvas.addEventListener('mousemove', this.options.hoverHandler);
 
+    this._handleTapEvent();
+
     return this.canvas;
 };
 
@@ -1057,7 +1253,7 @@ CanvasLayer.prototype.show = function () {
 
 CanvasLayer.prototype.hide = function () {
     this.canvas.style.display = "none";
-    //this._map.removeOverlay(this);
+    this._map.removeOverlay(this);
 };
 
 CanvasLayer.prototype.setZIndex = function (zIndex) {
@@ -1066,6 +1262,44 @@ CanvasLayer.prototype.setZIndex = function (zIndex) {
 
 CanvasLayer.prototype.getZIndex = function () {
     return this.zIndex;
+};
+
+CanvasLayer.prototype._handleTapEvent = function () {
+    // canvas.addEventListener('touchstart', this.options.tapHandler);
+    var canvas = this.canvas;
+    var _handler = this.options.tapHandler;
+    if (_handler && typeof _handler == 'function') {
+        var _touchStarted = false;
+        var _touchMoved = false;
+        var _currX = 0;
+        var _currY = 0;
+        var _cachedX = 0;
+        var _cachedY = 0;
+
+        canvas.addEventListener('touchstart', function (e) {
+            var pointer = e.targetTouches[0];
+            _currX = _cachedX = pointer.clientX;
+            _currY = _cachedY = pointer.clientY;
+            _touchStarted = true;
+            (function (e) {
+                setTimeout(function () {
+                    if (_cachedX == _currX && !_touchStarted & _cachedY == _currY) {
+                        _handler.call(canvas, e);
+                    }
+                }, 200);
+            })(e);
+        });
+
+        canvas.addEventListener('touchend', function (e) {
+            _touchStarted = false;
+        });
+
+        canvas.addEventListener('touchmove', function (e) {
+            var pointer = e.targetTouches[0];
+            _currX = pointer.clientX;
+            _currY = pointer.clientY;
+        });
+    }
 };
 /**
  * @author nikai (@胖嘟嘟的骨头, nikai@baidu.com)
@@ -1099,15 +1333,16 @@ function Layer(options) {
 
         // @handler: function(element, index)
         // @element: hovered/clicked data item, element is null when hover out
-        // @index: the position of hovered/clicked item
+        // @index: the position of hovered/clicked/tapped item
         elementClickedHandler: null,
-        elementHoveredHandler: null
+        elementHoveredHandler: null,
+        elementTappedHandler: null
 
     }, options));
 
-    // hold the element drawed in the layer that is hovering
+    // hold the element drawed in the layer that need to highlight
     // struct: {index: }
-    this._hoveredElement = null;
+    this._highlightElement = null;
 
     this.dataRangeControl = new DataRangeControl();
     this.Scale = new DrawScale();
@@ -1144,7 +1379,6 @@ util.extend(Layer.prototype, {
                 var rect = this.getBoundingClientRect(),
                     x = e.clientX - rect.left,
                     y = e.clientY - rect.top;
-
                 that._resposneToInterect(x, y, 'click');
             },
             hoverHandler: function hoverHandler(e) {
@@ -1153,6 +1387,16 @@ util.extend(Layer.prototype, {
                     y = e.clientY - rect.top;
 
                 that._resposneToInterect(x, y, 'hover');
+            },
+            tapHandler: function tapHandler(e) {
+                var pointer = e.targetTouches ? e.targetTouches[0] : null;
+                if (pointer) {
+                    var rect = this.getBoundingClientRect(),
+                        x = pointer.clientX - rect.left,
+                        y = pointer.clientY - rect.top;
+                    // console.log('tap (%d, %d)', x, y);
+                    that._resposneToInterect(x, y, 'tap');
+                }
             },
             elementTag: "canvas"
         });
@@ -1431,8 +1675,8 @@ util.extend(Layer.prototype, {
         this._getDrawer().notify('drawOptions');
     },
 
-    hoveredElement_changed: function hoveredElement_changed() {
-        console.log("hovered element changed");
+    highlightElement_changed: function highlightElement_changed() {
+        // console.log("highlight element changed: %o", this._highlightElement);
         this.draw();
     },
 
@@ -1443,36 +1687,42 @@ util.extend(Layer.prototype, {
             var paths = drawer.getElementPaths();
             var ctx = this.getCtx();
 
-            if (type == 'hover' && this._hoveredElement && this._hoveredElement.index) {
-                if (ctx.isPointInPath(paths[this._hoveredElement.index], x, y)) {
-                    // already trigged!
+            if (this._highlightElement && this._highlightElement.index) {
+                if (ctx.isPointInPath(paths[this._highlightElement.index], x, y)) {
+                    // console.log("already trigged!");
+                    if (type == "click" || type == "tap") {
+                        if (cb && typeof cb == 'function') {
+                            cb(data[this._highlightElement.index], this.highlightElement.index);
+                        }
+                    }
                     return;
                 }
             }
 
-            var newHoveredElement = null;
+            var newHighlightElement = null;
             for (var i = 0; i < paths.length; i++) {
                 if (ctx.isPointInPath(paths[i], x, y)) {
                     // bingo!
+                    // console.log("bingo");
                     var data = this.getData();
-                    newHoveredElement = { index: i, data: data[i] };
+                    newHighlightElement = { index: i, data: data[i] };
                     break;
                 }
             }
 
-            if (this._hoveredElement != newHoveredElement) {
-                this._hoveredElement = newHoveredElement;
-                this.notify("hoveredElement");
+            if (this._highlightElement !== newHighlightElement) {
+                this._highlightElement = newHighlightElement;
+                this.notify("highlightElement");
                 var cb = this._getHandler(type);
                 if (cb && typeof cb == 'function') {
-                    if (newHoveredElement) cb(data[newHoveredElement.index], newHoveredElement.index);else cb(null);
+                    if (newHighlightElement) cb(data[newHighlightElement.index], newHighlightElement.index);else cb(null);
                 }
             }
         }
     },
 
     _getHandler: function _getHandler(type) {
-        if (type == 'click') return this.getElementClickedHandler();else if (type == 'hover') return this.getElementHoveredHandler();else return null;
+        if (type == 'click') return this.getElementClickedHandler();else if (type == 'hover') return this.getElementHoveredHandler();else if (type == 'tap') return this.getElementTappedHandler();else return null;
     }
 
 });
@@ -1799,7 +2049,9 @@ DrawScale.prototype.change = function (callback) {
 
 DrawScale.prototype.hide = function () {
     var self = this;
-    self.box.style.display = 'none';
+    if (self.box) {
+        self.box.style.display = 'none';
+    }
 };
 
 DrawScale.prototype.show = function () {
@@ -2417,7 +2669,7 @@ function Drawer(layer) {
         drawOptions: {
             size: 2
         },
-        hoveredElement: null
+        highlightElement: null
     });
 
     // store all the path of element drawed in the layer, used for hit-detection
@@ -2430,7 +2682,7 @@ function Drawer(layer) {
     this.bindTo('drawOptions', layer);
     this.bindTo('mapv', layer);
     this.bindTo('map', layer);
-    this.bindTo('hoveredElement', layer);
+    this.bindTo('highlightElement', layer);
 }
 
 util.inherits(Drawer, Class);
@@ -2544,32 +2796,49 @@ BubbleDrawer.prototype.drawMap = function () {
     this.beginDrawMap();
 
     var data = this.getLayer().getData();
+    var highlightElement = this.getHighlightElement();
 
     var ctx = this.getCtx();
-
     var drawOptions = this.getDrawOptions();
 
     for (var i = 0, len = data.length; i < len; i++) {
         var item = data[i];
         var size = this.dataRange.getSize(item.count);
-        // ctx.beginPath();
-        // ctx.arc(item.px, item.py, size, 0, Math.PI * 2, false);
-        // ctx.closePath();
-        // ctx.fill();
-        // if (drawOptions.strokeStyle) {
-        //     ctx.stroke();
-        // }
-        var hoveredElement = this.getHoveredElement();
         var path = new Path2D();
-        // ctx.beginPath();
+
         path.arc(item.px, item.py, size, 0, Math.PI * 2, false);
-        // ctx.closePath();
-        ctx.fill(path);
-        if (hoveredElement && hoveredElement.index == i && drawOptions.strokeStyle) {
-            ctx.stroke(path);
-        }
 
         this._elementPaths.push(path);
+
+        // 跳过需要highlight的元素，留到最后再画，确保不会被覆盖
+        if (highlightElement && highlightElement.index == i) continue;
+
+        ctx.fill(path);
+
+        if (drawOptions.strokeStyle) {
+            ctx.stroke(path);
+        }
+    }
+
+    // 最后再画需要highlight的元素
+    if (highlightElement) {
+        var highlightPath = this._elementPaths[highlightElement.index];
+        ctx.fill(highlightPath);
+
+        if (drawOptions.highlightStrokeStyle) {
+            var highlightItem = highlightElement.data;
+            ctx.save();
+            ctx.strokeStyle = drawOptions.highlightStrokeStyle;
+            ctx.beginPath();
+            // ctx.arc(highlightItem.px, highlightItem.py, this.dataRange.getSize(highlightItem.count),
+            //         0, Math.PI * 2, false);
+            // ctx.stroke();
+            // ctx.closePath();
+            ctx.stroke(highlightPath);
+            ctx.restore();
+        } else if (drawOptions.strokeStyle) {
+            ctx.stroke(highlightPath);
+        }
     }
 
     this.endDrawMap();

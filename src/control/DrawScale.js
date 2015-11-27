@@ -20,7 +20,9 @@ DrawScale.prototype.change = function (callback) {
 
 DrawScale.prototype.hide = function () {
     var self = this;
-    self.box.style.display = 'none';
+    if (self.box) {
+        self.box.style.display = 'none';
+    }
 };
 
 DrawScale.prototype.show = function () {

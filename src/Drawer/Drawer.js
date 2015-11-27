@@ -15,7 +15,7 @@ function Drawer(layer) {
         drawOptions: {
             size: 2
         },
-        hoveredElement: null
+        highlightElement: null
     });
 
     // store all the path of element drawed in the layer, used for hit-detection
@@ -28,7 +28,7 @@ function Drawer(layer) {
     this.bindTo('drawOptions', layer);
     this.bindTo('mapv', layer);
     this.bindTo('map', layer);
-    this.bindTo('hoveredElement', layer);
+    this.bindTo('highlightElement', layer);
 
 }
 
