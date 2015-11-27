@@ -1677,7 +1677,11 @@ util.extend(Layer.prototype, {
 
     highlightElement_changed: function highlightElement_changed() {
         // console.log("highlight element changed: %o", this._highlightElement);
-        this.draw();
+        // 画icon暂时不重绘
+        if (!(this.getDrawType() == "simple" && this.getDrawOptions().icon)) {
+            debugger;
+            this.draw();
+        }
     },
 
     _resposneToInterect: function _resposneToInterect(x, y, type) {
@@ -1715,7 +1719,11 @@ util.extend(Layer.prototype, {
                 this.notify("highlightElement");
                 var cb = this._getHandler(type);
                 if (cb && typeof cb == 'function') {
-                    if (newHighlightElement) cb(data[newHighlightElement.index], newHighlightElement.index);else cb(null);
+                    if (newHighlightElement) {
+                        cb(data[newHighlightElement.index], newHighlightElement.index);
+                    } else {
+                        cb(null);
+                    }
                 }
             }
         }
@@ -4292,17 +4300,37 @@ SimpleDrawer.prototype.drawMap = function (time) {
                 if (item.px < 0 || item.px > ctx.canvas.width || item.py < 0 || item > ctx.canvas.height) {
                     continue;
                 }
-                ctx.beginPath();
-                ctx.moveTo(item.px, item.py);
+                // ctx.beginPath();
+                // ctx.moveTo(item.px, item.py);
+                var path = new Path2D();
                 if (icon && icon.show && icon.url) {
                     this.drawIcon(ctx, item, icon);
+
+                    // add path for event trigger
+                    var sx = icon.sx || 0;
+                    var sy = icon.sy || 0;
+                    var px = icon.px || 0;
+                    var py = icon.py || 0;
+                    var width = icon.width || 0;
+                    var height = icon.height || 0;
+
+                    var path = new Path2D();
+                    var x = item.px - width / 2 - px,
+                        y = item.py - height / 2 - py;
+
+                    path.rect(x, y, width, height);
+                    this._elementPaths.push(path);
+                    // ctx.strokeStyle = 'rgba(0, 0, 0, 1)';
+                    // ctx.fill(path);
                 } else {
-                    ctx.arc(item.px, item.py, radius, 0, 2 * Math.PI, false);
-                    ctx.fill();
-                }
-                if (drawOptions.strokeStyle) {
-                    ctx.stroke();
-                }
+                        path.arc(item.px, item.py, radius, 0, 2 * Math.PI, false);
+                        this._elementPaths.push(path);
+
+                        ctx.fill(path);
+                        if (drawOptions.strokeStyle) {
+                            ctx.stroke(path);
+                        }
+                    }
             }
         } else {
             //普通填充可一起绘制路径，最后再统一填充，性能上会好点
@@ -4341,12 +4369,16 @@ SimpleDrawer.prototype.drawIcon = function (ctx, item, icon) {
     var sheight = icon.sheight || 0;
     var width = icon.width || 0;
     var height = icon.height || 0;
+
     (function (item, sx, sy, swidth, sheight, width, height) {
         image.onload = function () {
             var pixelRatio = util.getPixelRatio(ctx);
+            var x = item.px - width / 2 - px,
+                y = item.py - height / 2 - py;
+
             ctx.save();
             ctx.scale(pixelRatio, pixelRatio);
-            ctx.drawImage(image, sx, sy, swidth, sheight, item.px - width / 2 - px, item.py - height / 2 - py, width, height);
+            ctx.drawImage(image, sx, sy, swidth, sheight, x, y, width, height);
             ctx.restore();
         };
     })(item, sx, sy, swidth, sheight, width, height);

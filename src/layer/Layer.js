@@ -382,7 +382,11 @@ util.extend(Layer.prototype, {
 
     highlightElement_changed: function() {
         // console.log("highlight element changed: %o", this._highlightElement);
-        this.draw();
+        // 画icon暂时不重绘
+        if (!(this.getDrawType() == "simple" && this.getDrawOptions().icon)) {
+            debugger;
+            this.draw();
+        }
     },
 
     _resposneToInterect: function(x, y, type) {
@@ -420,10 +424,11 @@ util.extend(Layer.prototype, {
                 this.notify("highlightElement");
                 var cb = this._getHandler(type);
                 if (cb && typeof(cb) == 'function') {
-                    if (newHighlightElement)
+                    if (newHighlightElement) {
                         cb(data[newHighlightElement.index], newHighlightElement.index);
-                    else
+                    } else {
                         cb(null);
+                    }
                 }
             }
 
