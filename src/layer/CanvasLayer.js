@@ -120,6 +120,7 @@ CanvasLayer.prototype._handleTapEvent = function() {
         var _currY = 0;
         var _cachedX = 0;
         var _cachedY = 0;
+        var _touches;
 
         canvas.addEventListener('touchstart', function(e) {
             var pointer = e.targetTouches[0];
@@ -133,14 +134,21 @@ CanvasLayer.prototype._handleTapEvent = function() {
                     }
                 }, 200);
             })(e); 
+
+            // if (e.targetTouches.length == 2) {
+            //     _touches = e.targetTouches;
+            //     console.log(JSON.stringify(e.targetTouches));
+            // }
         });
 
         canvas.addEventListener('touchend', function(e) {
             _touchStarted = false;
+            // console.log(e);
+            // console.log(JSON.stringify(e.changedTouches));
         });
 
         canvas.addEventListener('touchmove', function(e) {
-            var pointer = e.targetTouches[0];
+            var pointer = e.changedTouches[0];
             _currX = pointer.clientX;
             _currY = pointer.clientY;
         });

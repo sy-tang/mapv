@@ -142,10 +142,18 @@ util.extend(DataRange.prototype, {
     },
 
     generalSplitList: function () {
-        var splitNum = Math.ceil((this._max - this._min) / 7);
+        var drawOptions = this.get("drawOptions");
+        var splitOptions = util.extend({
+            minSize: 1,
+            maxSize: 9999,
+            stepSize: 1,
+            splitCount: 7
+        }, drawOptions.splitOptions);
+
+        var splitNum = Math.ceil((this._max - this._min) / splitOptions.splitCount);
         var index = this._min;
         this.splitList = [];
-        var radius = 1;
+        var radius = splitOptions.minSize;
         while (index < this._max) {
             this.splitList.push({
                 start: index,
@@ -154,8 +162,9 @@ util.extend(DataRange.prototype, {
                 color: this.colors[radius - 1]
             });
             index += splitNum;
-            radius++;
+            radius = Math.min(radius + splitOptions.stepSize, splitOptions.maxSize);
         }
+        console.log(this.splitList);
     },
 
     generalCategorySplitList: function () {

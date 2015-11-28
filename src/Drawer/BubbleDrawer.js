@@ -19,10 +19,19 @@ BubbleDrawer.prototype.drawMap = function () {
     var ctx = this.getCtx();
     var drawOptions = this.getDrawOptions();
 
+    // scale size with map zoom
+    var scale = 1 + (this.getMap().getZoom() - 6) * 0.2;
+
     for (var i = 0, len = data.length; i < len; i++) {
         var item = data[i];
         var size = this.dataRange.getSize(item.count);
         var path = new Path2D();
+
+        // scale size with map zoom
+        size = Math.round(scale * size);
+        if (size < 1) {
+            size = 1;
+        }
 
         path.arc(item.px, item.py, size, 0, Math.PI * 2, false);
 

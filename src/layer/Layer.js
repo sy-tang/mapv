@@ -384,7 +384,6 @@ util.extend(Layer.prototype, {
         // console.log("highlight element changed: %o", this._highlightElement);
         // 画icon暂时不重绘
         if (!(this.getDrawType() == "simple" && this.getDrawOptions().icon)) {
-            debugger;
             this.draw();
         }
     },
