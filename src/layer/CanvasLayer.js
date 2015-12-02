@@ -98,7 +98,7 @@ CanvasLayer.prototype.show = function(){
 
 CanvasLayer.prototype.hide = function(){
     this.canvas.style.display = "none";
-    this._map.removeOverlay(this);
+    // this._map.removeOverlay(this);
 }
 
 CanvasLayer.prototype.setZIndex = function(zIndex){

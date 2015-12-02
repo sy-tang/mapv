@@ -164,7 +164,6 @@ util.extend(DataRange.prototype, {
             index += splitNum;
             radius = Math.min(radius + splitOptions.stepSize, splitOptions.maxSize);
         }
-        console.log(this.splitList);
     },
 
     generalCategorySplitList: function () {

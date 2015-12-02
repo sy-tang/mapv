@@ -98,13 +98,17 @@ SimpleDrawer.prototype.drawMap = function(time) {
 
         var icon = drawOptions.icon;
 
+        var highlightElement = this.getHighlightElement(); 
         if (drawOptions.strokeStyle || drawOptions.globalCompositeOperation) {
             // 圆描边或设置颜色叠加方式需要一个个元素进行绘制
             for (var i = 0, len = data.length; i < len; i++) {
                 var item = data[i];
-                if (item.px < 0 || item.px > ctx.canvas.width || item.py < 0 || item > ctx.canvas.height) {
-                    continue;
-                }
+                // if (item.px < 0 || item.px > ctx.canvas.width || item.py < 0 || item > ctx.canvas.height) {
+                //     if (highlightElement && highlightElement.index == i) {
+                //         highlightElement = null;
+                //     }
+                //     continue;
+                // }
                 // ctx.beginPath();
                 // ctx.moveTo(item.px, item.py);
                 var path = new Path2D();
