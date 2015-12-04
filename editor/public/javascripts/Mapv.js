@@ -1193,9 +1193,9 @@ function Layer(options) {
         // @handler: function(element, index)
         // @element: hovered/clicked data item, element is null when hover out
         // @index: the position of hovered/clicked/tapped item
-        elementClickedHandler: null,
-        elementHoveredHandler: null,
-        elementTappedHandler: null
+        click: null,
+        hover: null,
+        tap: null
 
     }, options));
 
@@ -1538,7 +1538,7 @@ util.extend(Layer.prototype, {
         // console.log("highlight element changed: %o", this._highlightElement);
         // 画icon暂时不重绘
         if (!(this.getDrawType() == "simple" && this.getDrawOptions().icon)) {
-            // this.draw();
+            this.draw();
         }
     },
 
@@ -1588,7 +1588,7 @@ util.extend(Layer.prototype, {
     },
 
     _getHandler: function _getHandler(type) {
-        if (type == 'click') return this.getElementClickedHandler();else if (type == 'hover') return this.getElementHoveredHandler();else if (type == 'tap') return this.getElementTappedHandler();else return null;
+        if (type == 'click') return this.getClick();else if (type == 'hover') return this.getHover();else if (type == 'tap') return this.getTap();else return null;
     }
 
 });
@@ -4166,13 +4166,9 @@ SimpleDrawer.prototype.drawMap = function (time) {
             for (var i = 0, len = data.length; i < len; i++) {
                 var item = data[i];
                 // if (item.px < 0 || item.px > ctx.canvas.width || item.py < 0 || item > ctx.canvas.height) {
-                //     if (highlightElement && highlightElement.index == i) {
-                //         highlightElement = null;
-                //     }
                 //     continue;
                 // }
-                // ctx.beginPath();
-                // ctx.moveTo(item.px, item.py);
+
                 var path = new Path2D();
                 if (icon && icon.show && icon.url) {
                     this.drawIcon(ctx, item, icon);
@@ -4191,17 +4187,15 @@ SimpleDrawer.prototype.drawMap = function (time) {
 
                     path.rect(x, y, width, height);
                     this._elementPaths.push(path);
-                    // ctx.strokeStyle = 'rgba(0, 0, 0, 1)';
-                    // ctx.fill(path);
                 } else {
-                        path.arc(item.px, item.py, radius, 0, 2 * Math.PI, false);
-                        this._elementPaths.push(path);
+                    path.arc(item.px, item.py, radius, 0, 2 * Math.PI, false);
+                    // this._elementPaths.push(path);
 
-                        ctx.fill(path);
-                        if (drawOptions.strokeStyle) {
-                            ctx.stroke(path);
-                        }
+                    ctx.fill(path);
+                    if (drawOptions.strokeStyle) {
+                        ctx.stroke(path);
                     }
+                }
             }
         } else {
             //普通填充可一起绘制路径，最后再统一填充，性能上会好点

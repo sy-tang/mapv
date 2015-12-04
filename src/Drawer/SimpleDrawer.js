@@ -104,13 +104,9 @@ SimpleDrawer.prototype.drawMap = function(time) {
             for (var i = 0, len = data.length; i < len; i++) {
                 var item = data[i];
                 // if (item.px < 0 || item.px > ctx.canvas.width || item.py < 0 || item > ctx.canvas.height) {
-                //     if (highlightElement && highlightElement.index == i) {
-                //         highlightElement = null;
-                //     }
                 //     continue;
                 // }
-                // ctx.beginPath();
-                // ctx.moveTo(item.px, item.py);
+
                 var path = new Path2D();
                 if (icon && icon.show && icon.url) {
                     this.drawIcon(ctx, item, icon);
@@ -129,12 +125,10 @@ SimpleDrawer.prototype.drawMap = function(time) {
 
                     path.rect(x, y, width, height);
                     this._elementPaths.push(path);
-                    // ctx.strokeStyle = 'rgba(0, 0, 0, 1)';
-                    // ctx.fill(path);
 
                 } else {
                     path.arc(item.px, item.py, radius, 0, 2 * Math.PI, false);
-                    this._elementPaths.push(path);
+                    // this._elementPaths.push(path);
 
                     ctx.fill(path);
                     if (drawOptions.strokeStyle) {

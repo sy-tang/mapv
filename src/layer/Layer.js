@@ -29,9 +29,9 @@ function Layer (options) {
         // @handler: function(element, index)
         // @element: hovered/clicked data item, element is null when hover out
         // @index: the position of hovered/clicked/tapped item 
-        elementClickedHandler: null,
-        elementHoveredHandler: null,
-        elementTappedHandler: null  
+        click: null,
+        hover: null,
+        tap: null  
 
     }, options));
 
@@ -384,7 +384,7 @@ util.extend(Layer.prototype, {
         // console.log("highlight element changed: %o", this._highlightElement);
         // 画icon暂时不重绘
         if (!(this.getDrawType() == "simple" && this.getDrawOptions().icon)) {
-            // this.draw();
+            this.draw();
         }
     },
 
@@ -436,11 +436,11 @@ util.extend(Layer.prototype, {
 
     _getHandler: function(type) {
         if (type == 'click')
-            return this.getElementClickedHandler();
+            return this.getClick();
         else if (type == 'hover')
-            return this.getElementHoveredHandler();
+            return this.getHover();
         else if (type == 'tap')
-            return this.getElementTappedHandler();
+            return this.getTap();
         else
             return null;
     }
