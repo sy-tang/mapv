@@ -147,7 +147,6 @@ util.extend(Layer.prototype, {
             this._animationFlag = true;
         }
 
-
         var animationOptions = this.getAnimationOptions() || {};
         if (this.getDataType() === 'polyline' && this.getAnimation() && !this._animationTime) {
             this._animationTime = true;
@@ -160,7 +159,6 @@ util.extend(Layer.prototype, {
                     console.log('stop', e);
                 }, 
                 render: function(e) {
-
                     if (me.getContext() == '2d') {
                         ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
                     }
@@ -176,6 +174,32 @@ util.extend(Layer.prototype, {
                 //setTimeout(function(){
                     timeline.start();
                 //}, 3000);
+            });
+
+            timeline.start();
+        }
+
+        // simple icon animation
+        if (this.getAnimation() && !this._animationTime && this.getDrawOptions().icon) {
+            this._animationTime = true;
+            var canvas = me.canvasLayer.getContainer();
+            canvas.style.transform = "translate(0, -100)";
+            canvas.style.opacity = 0;
+            var timeline = this.timeline = new Animation({
+                duration: animationOptions.duration || 1000,  // 动画时长, 单位毫秒
+                fps: animationOptions.fps || 30,         // 每秒帧数
+                delay: animationOptions.delay || Animation.INFINITE,        // 延迟执行时间，单位毫秒,如果delay为infinite则表示手动执行
+                transition: Transitions[animationOptions.transition || "linear"],
+                onStop: animationOptions.onStop || function (e) { // 调用stop停止时的回调函数
+                    console.log('stop', e);
+                }, 
+                render: function(e) {
+                    var offset = -(1 - e) * 100;
+                    var canvas = me.canvasLayer.getContainer();
+                    canvas.style.transform = "translate(0, " + offset + "px)";  
+                    canvas.style.opacity = e;
+                    animationOptions.render && animationOptions.render(time);
+                }
             });
 
             timeline.start();
@@ -218,7 +242,6 @@ util.extend(Layer.prototype, {
         } else {
             this.canvasLayer && this.canvasLayer.show();
         }
-
         this.initialize();
 
         this.updateControl();

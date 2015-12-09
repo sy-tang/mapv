@@ -43,6 +43,7 @@ SimpleDrawer.prototype.drawMap = function(time) {
         }
 
         var animationOptions = this.getLayer().getAnimationOptions() || {};
+
         for (var i = 0, len = data.length; i < len; i++) {
             var geo = data[i].pgeo;
             var startIndex = 0, //开始的索引
@@ -100,6 +101,7 @@ SimpleDrawer.prototype.drawMap = function(time) {
 
         var highlightElement = this.getHighlightElement(); 
         if (drawOptions.strokeStyle || drawOptions.globalCompositeOperation) {
+
             // 圆描边或设置颜色叠加方式需要一个个元素进行绘制
             for (var i = 0, len = data.length; i < len; i++) {
                 var item = data[i];
@@ -206,6 +208,7 @@ SimpleDrawer.prototype.drawAnimation = function() {
 
     if (dataType === 'polyline') {
         if (animation === 'time') {} else {
+
             for (var i = 0, len = data.length; i < len; i++) {
                 var index = data[i].index;
                 var pgeo = data[i].pgeo;

@@ -19,6 +19,10 @@ function Animation(opts) {
     }
     this._opts = defaultOptions;
 
+    if (typeof this._opts.transition == 'string') {
+        this._opts.transition = Transitions[this._opts.transition] || Transitions.linear;
+    }
+
     if (isNumber(defaultOptions.delay)) {
         var me = this;
         setTimeout(function() {
