@@ -10,7 +10,7 @@ function BubbleDrawer() {
 
 util.inherits(BubbleDrawer, Drawer);
 
-BubbleDrawer.prototype.drawMap = function () {
+BubbleDrawer.prototype.drawMap = function (time) {
     this.beginDrawMap();
 
     var data = this.getLayer().getData();
@@ -21,6 +21,14 @@ BubbleDrawer.prototype.drawMap = function () {
 
     // scale size with map zoom
     var scale = 1 + (this.getMap().getZoom() - 6) * 0.2;
+
+    console.log(time);
+
+    if(time !== undefined) {
+        scale *= time;
+        ctx.globalAlpha = time;
+
+    } 
 
     for (var i = 0, len = data.length; i < len; i++) {
         var item = data[i];

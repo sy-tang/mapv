@@ -1340,6 +1340,31 @@ util.extend(Layer.prototype, {
             timeline.start();
         }
 
+        // bubble animation
+        if (this.getDrawType() === 'bubble' && this.getAnimation() && !this._animationTime) {
+            this._animationTime = true;
+            var timeline = this.timeline = new Animation({
+                duration: animationOptions.duration || 1000, // 动画时长, 单位毫秒
+                fps: animationOptions.fps || 30, // 每秒帧数
+                delay: animationOptions.delay || Animation.INFINITE, // 延迟执行时间，单位毫秒,如果delay为infinite则表示手动执行
+                transition: Transitions[animationOptions.transition || "linear"],
+                onStop: animationOptions.onStop || function (e) {
+                    // 调用stop停止时的回调函数
+                    console.log('stop', e);
+                },
+                render: function render(e) {
+                    if (me.getContext() == '2d') {
+                        ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+                    }
+                    me._getDrawer().drawMap(e);
+
+                    animationOptions.render && animationOptions.render(time);
+                }
+            });
+
+            timeline.start();
+        }
+
         // simple icon animation
         if (this.getAnimation() && !this._animationTime && this.getDrawOptions().icon) {
             this._animationTime = true;
@@ -2687,7 +2712,7 @@ function BubbleDrawer() {
 
 util.inherits(BubbleDrawer, Drawer);
 
-BubbleDrawer.prototype.drawMap = function () {
+BubbleDrawer.prototype.drawMap = function (time) {
     this.beginDrawMap();
 
     var data = this.getLayer().getData();
@@ -2698,6 +2723,13 @@ BubbleDrawer.prototype.drawMap = function () {
 
     // scale size with map zoom
     var scale = 1 + (this.getMap().getZoom() - 6) * 0.2;
+
+    console.log(time);
+
+    if (time !== undefined) {
+        scale *= time;
+        ctx.globalAlpha = time;
+    }
 
     for (var i = 0, len = data.length; i < len; i++) {
         var item = data[i];
