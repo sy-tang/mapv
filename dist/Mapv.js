@@ -4256,7 +4256,23 @@ SimpleDrawer.prototype.drawMap = function (time) {
 
 // 绘制icon
 SimpleDrawer.prototype.drawIcon = function (ctx, item, icon) {
-    var image = new Image();
+    var that = this;
+
+    if (this.iconImage) {
+        this.drawImage(ctx, item, icon, this.iconImage);
+    } else {
+        var image = new Image();
+        (function (item, icon) {
+            image.onload = function () {
+                that.iconImage = image;
+                that.drawImage(ctx, item, icon, image);
+            };
+        })(item, icon);
+        image.src = icon.url;
+    }
+};
+
+SimpleDrawer.prototype.drawImage = function (ctx, item, icon, image) {
     var sx = icon.sx || 0;
     var sy = icon.sy || 0;
     var px = icon.px || 0;
@@ -4266,19 +4282,14 @@ SimpleDrawer.prototype.drawIcon = function (ctx, item, icon) {
     var width = icon.width || 0;
     var height = icon.height || 0;
 
-    (function (item, sx, sy, swidth, sheight, width, height) {
-        image.onload = function () {
-            var pixelRatio = util.getPixelRatio(ctx);
-            var x = item.px - width / 2 - px,
-                y = item.py - height / 2 - py;
+    var pixelRatio = util.getPixelRatio(ctx);
+    var x = item.px - width / 2 - px,
+        y = item.py - height / 2 - py;
 
-            ctx.save();
-            ctx.scale(pixelRatio, pixelRatio);
-            ctx.drawImage(image, sx, sy, swidth, sheight, x, y, width, height);
-            ctx.restore();
-        };
-    })(item, sx, sy, swidth, sheight, width, height);
-    image.src = icon.url;
+    ctx.save();
+    ctx.scale(pixelRatio, pixelRatio);
+    ctx.drawImage(image, sx, sy, swidth, sheight, x, y, width, height);
+    ctx.restore();
 };
 
 /**
