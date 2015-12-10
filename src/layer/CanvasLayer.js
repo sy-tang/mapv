@@ -147,6 +147,12 @@ CanvasLayer.prototype._handleTapEvent = function() {
             // console.log(JSON.stringify(e.changedTouches));
         });
 
+        canvas.addEventListener('touchcancel', function(e) {
+            _touchStarted = false;
+            // console.log(e);
+            // console.log(JSON.stringify(e.changedTouches));
+        });
+
         canvas.addEventListener('touchmove', function(e) {
             var pointer = e.changedTouches[0];
             _currX = pointer.clientX;

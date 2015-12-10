@@ -953,6 +953,9 @@ function Mapv(options) {
     }, options));
 
     this._layers = [];
+
+    this._topLayer = null;
+
     //this._initDrawScale();
     this._fixPinchZoom();
 
@@ -1015,6 +1018,83 @@ Mapv.prototype._fixPinchZoom = function () {
         _touchMidPoint = null;
     });
 };
+
+Mapv.prototype.addLayer = function (layer) {
+    if (layer) {
+        // 将事件重新派发给下一层
+        if (this._topLayer) {
+            var lastTopLayer = this._topLayer;
+            var events = ['mousemove', 'click', 'touchstart', 'touchcancel', 'touchend'];
+            for (var i = 0; i < events.length; i++) {
+                layer.getCanvas().addEventListener(events[i], function (e) {
+                    var new_e;
+
+                    if (e.type.indexOf("touch") >= 0) {
+                        // new_e = document.createEvent('TouchEvent');
+                        // new_e.targetTouches = e.targetTouches;
+                        // new_e.changedTouches = e.changedTouches;
+
+                        // new_e.initTouchEvent("touchstart", true, true);
+
+                        new_e = createTouchEvent(e);
+                        // new_e.initTouchEvent("touchstart", true, true, window, null, 0, 0, 0, 0, false, false, false, false, e.touches, e.targetTouches, e.changedTouches, 1, 0);
+                    } else {
+                            new_e = new e.constructor(e.type, e);
+                        }
+                    alert(new_e.targetTouches);
+                    lastTopLayer.getCanvas().dispatchEvent(new_e);
+                });
+            }
+        }
+
+        this._layers.push(layer);
+        this._topLayer = layer;
+        // console.log('mapv: add layer %o', layer);
+    }
+};
+
+function createTouchEvent(option) {
+    var ua = /iPhone|iP[oa]d/.test(navigator.userAgent) ? 'iOS' : /Android/.test(navigator.userAgent) ? 'Android' : 'PC';
+
+    var option = option || {};
+    var param = {
+        type: 'touchstart',
+        canBubble: true,
+        cancelable: true,
+        view: window,
+        detail: 0,
+        screenX: 0,
+        screenY: 0,
+        clientX: 0,
+        clientY: 0,
+        ctrlKey: false,
+        altKey: false,
+        shiftKey: false,
+        metaKey: false,
+        touches: 0,
+        targetTouches: 0,
+        changedTouches: 0,
+        scale: 0,
+        rotation: 0,
+        touchItem: 0
+    };
+
+    for (var i in param) {
+        if (param.hasOwnProperty(i)) {
+            param[i] = option[i] !== undefined ? option[i] : param[i];
+        }
+    }
+
+    var event = document.createEvent('TouchEvent');
+
+    // if(ua === 'Android') {
+    //     event.initTouchEvent(param.touchItem, param.touchItem, param.touchItem, param.type, param.view, param.screenX, param.screenY, param.clientX, param.clientY, param.ctrlKey, param.altKey, param.shiftKey, param.metaKey);
+    // } else {
+    event.initTouchEvent(param.type, param.canBubble, param.cancelable, param.view, param.detail, param.screenX, param.screenY, param.clientX, param.clientY, param.ctrlKey, param.altKey, param.shiftKey, param.metaKey, param.touches, param.targetTouches, param.changedTouches, param.scale, param.rotation);
+    // }
+
+    return event;
+}
 /**
  * 一直覆盖在当前地图视野的Canvas对象
  *
@@ -1157,6 +1237,12 @@ CanvasLayer.prototype._handleTapEvent = function () {
             // console.log(JSON.stringify(e.changedTouches));
         });
 
+        canvas.addEventListener('touchcancel', function (e) {
+            _touchStarted = false;
+            // console.log(e);
+            // console.log(JSON.stringify(e.changedTouches));
+        });
+
         canvas.addEventListener('touchmove', function (e) {
             var pointer = e.changedTouches[0];
             _currX = pointer.clientX;
@@ -1207,6 +1293,8 @@ function Layer(options) {
     // struct: {index: }
     this._highlightElement = null;
 
+    this._id = Math.random();
+
     this.dataRangeControl = new DataRangeControl();
     this.Scale = new DrawScale();
 
@@ -1225,10 +1313,10 @@ util.extend(Layer.prototype, {
 
         this.bindTo('map', this.getMapv());
 
+        var that = this;
+
         this.getMap().addControl(this.dataRangeControl);
         this.getMap().addControl(this.Scale);
-
-        var that = this;
 
         this.canvasLayer = new CanvasLayer({
             map: this.getMap(),
@@ -1248,7 +1336,6 @@ util.extend(Layer.prototype, {
                 var rect = this.getBoundingClientRect(),
                     x = e.clientX - rect.left,
                     y = e.clientY - rect.top;
-
                 that._resposneToInterect(x, y, 'hover');
             },
             tapHandler: function tapHandler(e) {
@@ -1266,7 +1353,7 @@ util.extend(Layer.prototype, {
 
         this.setCtx(this.canvasLayer.getContainer().getContext(this.getContext()));
 
-        if (this.getAnimation()) {
+        if (this.getAnimation() && this.getDataType() == 'polyline') {
             this.animationLayer = new CanvasLayer({
                 map: this.getMap(),
                 zIndex: this.getZIndex(),
@@ -1277,8 +1364,8 @@ util.extend(Layer.prototype, {
         }
     },
 
-    draw: function draw() {
-
+    draw: function draw(remainLayout) {
+        // debugger;
         var me = this;
 
         if (!this.getMapv()) {
@@ -1291,53 +1378,62 @@ util.extend(Layer.prototype, {
             return false;
         }
 
-        this._calculatePixel();
+        if (!remainLayout) {
+            this._calculatePixel();
+        }
 
-        if (this.getAnimation() !== 'time') {
-
+        // 没有动画，直接绘制
+        if (!this.getAnimation() || this._animationTime) {
             if (this.getContext() == '2d') {
                 ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
             }
-
             this._getDrawer().drawMap();
         }
 
-        if (this.getDataType() === 'polyline' && this.getAnimation() && !this._animationFlag) {
-            this.drawAnimation();
-
-            this._animationFlag = true;
-        }
-
+        // 带动画的绘制
         var animationOptions = this.getAnimationOptions() || {};
+
+        // polyline animation
         if (this.getDataType() === 'polyline' && this.getAnimation() && !this._animationTime) {
             this._animationTime = true;
-            var timeline = this.timeline = new Animation({
-                duration: animationOptions.duration || 10000, // 动画时长, 单位毫秒
-                fps: animationOptions.fps || 30, // 每秒帧数
-                delay: animationOptions.delay || Animation.INFINITE, // 延迟执行时间，单位毫秒,如果delay为infinite则表示手动执行
-                transition: Transitions[animationOptions.transition || "linear"],
-                onStop: animationOptions.onStop || function (e) {
-                    // 调用stop停止时的回调函数
-                    console.log('stop', e);
-                },
-                render: function render(e) {
-                    if (me.getContext() == '2d') {
-                        ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+
+            if (this.getAnimation == 'time') {
+                // 时变类型
+                var timeline = this.timeline = new Animation({
+                    duration: animationOptions.duration || 10000, // 动画时长, 单位毫秒
+                    fps: animationOptions.fps || 30, // 每秒帧数
+                    delay: animationOptions.delay || Animation.INFINITE, // 延迟执行时间，单位毫秒,如果delay为infinite则表示手动执行
+                    transition: Transitions[animationOptions.transition || "linear"],
+                    onStop: animationOptions.onStop || function (e) {
+                        // 调用stop停止时的回调函数
+                        console.log('stop', e);
+                    },
+                    render: function render(e) {
+                        if (me.getContext() == '2d') {
+                            ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+                        }
+                        var time = parseInt(parseFloat(me._minTime) + (me._maxTime - me._minTime) * e);
+                        me._getDrawer().drawMap(time);
+
+                        animationOptions.render && animationOptions.render(time);
                     }
-                    var time = parseInt(parseFloat(me._minTime) + (me._maxTime - me._minTime) * e);
-                    me._getDrawer().drawMap(time);
+                });
 
-                    animationOptions.render && animationOptions.render(time);
-                }
-            });
+                timeline.setFinishCallback(function () {
+                    //setTimeout(function(){
+                    timeline.start();
+                    //}, 3000);
+                });
 
-            timeline.setFinishCallback(function () {
-                //setTimeout(function(){
                 timeline.start();
-                //}, 3000);
-            });
+            } else {
+                if (this.getContext() == '2d') {
+                    ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+                }
 
-            timeline.start();
+                this._getDrawer().drawMap();
+                this.drawAnimation();
+            }
         }
 
         // bubble animation
@@ -1368,6 +1464,12 @@ util.extend(Layer.prototype, {
         // simple icon animation
         if (this.getAnimation() && !this._animationTime && this.getDrawOptions().icon) {
             this._animationTime = true;
+
+            if (this.getContext() == '2d') {
+                ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+            }
+            this._getDrawer().drawMap();
+
             var canvas = me.canvasLayer.getContainer();
             canvas.style.transform = "translate(0, -100)";
             canvas.style.opacity = 0;
@@ -1393,6 +1495,8 @@ util.extend(Layer.prototype, {
         }
 
         this.dispatchEvent('draw');
+
+        return true;
     },
 
     drawAnimation: function drawAnimation() {
@@ -1415,32 +1519,38 @@ util.extend(Layer.prototype, {
     },
 
     animation_changed: function animation_changed() {
+        // console.log('animation_changed');
         if (this.getAnimation()) {
             this.drawAnimation();
         }
     },
 
     mapv_changed: function mapv_changed() {
-
+        // console.log('mapv_changed');
         if (!this.getMapv()) {
             this.canvasLayer && this.canvasLayer.hide();
             return;
         } else {
             this.canvasLayer && this.canvasLayer.show();
         }
+
         this.initialize();
 
         this.updateControl();
 
         this.draw();
+
+        this.getMapv().addLayer(this);
     },
 
     drawType_changed: function drawType_changed() {
+        // console.log('dataType_changed');
         this.updateControl();
         this.draw();
     },
 
     drawOptions_changed: function drawOptions_changed() {
+        // console.log('drawOptions_changed');
         this.draw();
     },
 
@@ -1528,8 +1638,16 @@ util.extend(Layer.prototype, {
         console.timeEnd('parseData');
     },
     data_changed: function data_changed() {
+        // console.log('data_changed');
         var data = this.getData();
         if (data) {
+            // 对气泡从大到小进行排序，确保小气泡总是画在大气泡的上面
+            if (this.getDrawType() === 'bubble') {
+                data.sort(function (a, b) {
+                    return b.count - a.count;
+                });
+            }
+
             if (this.getDataType() === "polyline" && this.getAnimation()) {
                 for (var i = 0; i < data.length; i++) {
                     data[i].index = parseInt(Math.random() * data[i].geo.length, 10);
@@ -1571,6 +1689,7 @@ util.extend(Layer.prototype, {
         }
     },
     getDataRange: function getDataRange() {
+        // console.log('data_range_changed');
         return {
             minTime: this._minTime,
             maxTime: this._maxTime,
@@ -1579,11 +1698,13 @@ util.extend(Layer.prototype, {
         };
     },
     zIndex_changed: function zIndex_changed() {
+        // console.log('zIndex_changed');
         var zIndex = this.getZIndex();
         this.canvasLayer.setZIndex(zIndex);
     },
 
     dataRangeControl_changed: function dataRangeControl_changed() {
+        // console.log('dataRangeControl_changed');
         this.updateControl();
         this._getDrawer().notify('drawOptions');
     },
@@ -1592,7 +1713,7 @@ util.extend(Layer.prototype, {
         // console.log("highlight element changed: %o", this._highlightElement);
         // 画icon暂时不重绘
         if (!(this.getDrawType() == "simple" && this.getDrawOptions().icon)) {
-            this.draw();
+            this.draw(true);
         }
     },
 
@@ -1602,10 +1723,10 @@ util.extend(Layer.prototype, {
             // find out the click point in which path
             var paths = drawer.getElementPaths();
             var ctx = this.getCtx();
+            var data = this.getData();
 
-            if (this._highlightElement && this._highlightElement.index) {
+            if (this._highlightElement) {
                 if (ctx.isPointInPath(paths[this._highlightElement.index], x, y)) {
-                    // console.log("already trigged!");
                     if (type == "click" || type == "tap") {
                         if (cb && typeof cb == 'function') {
                             cb(data[this._highlightElement.index], this.highlightElement.index);
@@ -1643,6 +1764,10 @@ util.extend(Layer.prototype, {
 
     _getHandler: function _getHandler(type) {
         if (type == 'click') return this.getClick();else if (type == 'hover') return this.getHover();else if (type == 'tap') return this.getTap();else return null;
+    },
+
+    getCanvas: function getCanvas() {
+        if (this.canvasLayer) return this.canvasLayer.getContainer();else return null;
     }
 
 });
@@ -2724,11 +2849,16 @@ BubbleDrawer.prototype.drawMap = function (time) {
     // scale size with map zoom
     var scale = 1 + (this.getMap().getZoom() - 6) * 0.2;
 
-    console.log(time);
+    var isFinalFrame = true;
 
     if (time !== undefined) {
+        ctx.globalAlpha = time;
         scale *= time;
         ctx.globalAlpha = time;
+        if (time < 1) {
+            // animating
+            isFinalFrame = false;
+        }
     }
 
     for (var i = 0, len = data.length; i < len; i++) {
@@ -2744,16 +2874,20 @@ BubbleDrawer.prototype.drawMap = function (time) {
 
         path.arc(item.px, item.py, size, 0, Math.PI * 2, false);
 
-        this._elementPaths.push(path);
+        isFinalFrame && this._elementPaths.push(path);
 
         // 跳过需要highlight的元素，留到最后再画，确保不会被覆盖
         if (highlightElement && highlightElement.index == i) continue;
+        ctx.save();
+        // ctx.clip(path);
 
         ctx.fill(path);
 
         if (drawOptions.strokeStyle) {
             ctx.stroke(path);
         }
+
+        ctx.restore();
     }
 
     // 最后再画需要highlight的元素
@@ -4223,8 +4357,9 @@ SimpleDrawer.prototype.drawMap = function (time) {
         var icon = drawOptions.icon;
 
         var highlightElement = this.getHighlightElement();
-        if (drawOptions.strokeStyle || drawOptions.globalCompositeOperation) {
+        if (icon || drawOptions.strokeStyle || drawOptions.globalCompositeOperation) {
 
+            console.log('draw icons');
             // 圆描边或设置颜色叠加方式需要一个个元素进行绘制
             for (var i = 0, len = data.length; i < len; i++) {
                 var item = data[i];
@@ -4261,21 +4396,17 @@ SimpleDrawer.prototype.drawMap = function (time) {
                 }
             }
         } else {
-            //普通填充可一起绘制路径，最后再统一填充，性能上会好点
+            //普通点填充可一起绘制路径，最后再统一填充，性能上会好点
             for (var i = 0, len = data.length; i < len; i++) {
                 var item = data[i];
                 if (item.px < 0 || item.px > ctx.canvas.width || item.py < 0 || item > ctx.canvas.height) {
                     continue;
                 }
                 ctx.moveTo(item.px, item.py);
-                if (icon && icon.show && icon.url) {
-                    this.drawIcon(ctx, item, icon);
+                if (radius < 2) {
+                    ctx.fillRect(item.px, item.py, radius * 2, radius * 2);
                 } else {
-                    if (radius < 2) {
-                        ctx.fillRect(item.px, item.py, radius * 2, radius * 2);
-                    } else {
-                        ctx.arc(item.px, item.py, radius, 0, 2 * Math.PI, false);
-                    }
+                    ctx.arc(item.px, item.py, radius, 0, 2 * Math.PI, false);
                 }
             }
 

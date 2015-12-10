@@ -100,8 +100,9 @@ SimpleDrawer.prototype.drawMap = function(time) {
         var icon = drawOptions.icon;
 
         var highlightElement = this.getHighlightElement(); 
-        if (drawOptions.strokeStyle || drawOptions.globalCompositeOperation) {
+        if (icon || drawOptions.strokeStyle || drawOptions.globalCompositeOperation) {
 
+            console.log('draw icons');
             // 圆描边或设置颜色叠加方式需要一个个元素进行绘制
             for (var i = 0, len = data.length; i < len; i++) {
                 var item = data[i];
@@ -141,22 +142,17 @@ SimpleDrawer.prototype.drawMap = function(time) {
             }
 
         } else {
-            //普通填充可一起绘制路径，最后再统一填充，性能上会好点
+            //普通点填充可一起绘制路径，最后再统一填充，性能上会好点
             for (var i = 0, len = data.length; i < len; i++) {
                 var item = data[i];
                 if (item.px < 0 || item.px > ctx.canvas.width || item.py < 0 || item > ctx.canvas.height) {
                     continue;
                 }
                 ctx.moveTo(item.px, item.py);
-                if (icon && icon.show && icon.url) {
-                    this.drawIcon(ctx, item, icon);
-
+                if (radius < 2) {
+                    ctx.fillRect(item.px, item.py, radius * 2, radius * 2);
                 } else {
-                    if (radius < 2) {
-                        ctx.fillRect(item.px, item.py, radius * 2, radius * 2);
-                    } else {
-                        ctx.arc(item.px, item.py, radius, 0, 2 * Math.PI, false);
-                    }
+                    ctx.arc(item.px, item.py, radius, 0, 2 * Math.PI, false);
                 }
             }
 

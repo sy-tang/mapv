@@ -22,12 +22,15 @@ BubbleDrawer.prototype.drawMap = function (time) {
     // scale size with map zoom
     var scale = 1 + (this.getMap().getZoom() - 6) * 0.2;
 
-    console.log(time);
+    var isFinalFrame = true;
 
     if(time !== undefined) {
+        ctx.globalAlpha = time;
         scale *= time;
         ctx.globalAlpha = time;
-
+        if (time < 1) { // animating
+            isFinalFrame = false;
+        }
     } 
 
     for (var i = 0, len = data.length; i < len; i++) {
@@ -43,17 +46,22 @@ BubbleDrawer.prototype.drawMap = function (time) {
 
         path.arc(item.px, item.py, size, 0, Math.PI * 2, false);
 
-        this._elementPaths.push(path);
+        isFinalFrame && this._elementPaths.push(path);
 
         // 跳过需要highlight的元素，留到最后再画，确保不会被覆盖
         if (highlightElement && highlightElement.index == i)
             continue;
+        ctx.save();
+        // ctx.clip(path);
 
         ctx.fill(path);
 
         if (drawOptions.strokeStyle) {
             ctx.stroke(path);
         }
+
+        ctx.restore();
+
     }
 
     // 最后再画需要highlight的元素

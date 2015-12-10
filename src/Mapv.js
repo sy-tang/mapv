@@ -20,6 +20,9 @@ function Mapv(options) {
     }, options));
 
     this._layers = [];
+
+    this._topLayer = null;
+
     //this._initDrawScale();
     this._fixPinchZoom();
     
@@ -80,4 +83,82 @@ Mapv.prototype._fixPinchZoom = function() {
         _zoom = newZoom; 
         _touchMidPoint = null;
     });
+}
+
+Mapv.prototype.addLayer = function(layer) {
+    if (layer) {
+        // 将事件重新派发给下一层
+        if (this._topLayer) {
+            var lastTopLayer = this._topLayer;
+            var events = ['mousemove', 'click', 'touchstart', 'touchcancel', 'touchend'];
+            for(var i = 0; i < events.length; i++) {
+                layer.getCanvas().addEventListener(events[i], function(e) {
+                    var new_e;
+
+                    if (e.type.indexOf("touch") >= 0) {
+                        // new_e = document.createEvent('TouchEvent');
+                        // new_e.targetTouches = e.targetTouches;
+                        // new_e.changedTouches = e.changedTouches;
+
+                        // new_e.initTouchEvent("touchstart", true, true);
+
+                        new_e = createTouchEvent(e);
+                        // new_e.initTouchEvent("touchstart", true, true, window, null, 0, 0, 0, 0, false, false, false, false, e.touches, e.targetTouches, e.changedTouches, 1, 0);
+
+                    } else {
+                        new_e = new e.constructor(e.type, e);
+                    }
+                    alert(new_e.targetTouches);
+                    lastTopLayer.getCanvas().dispatchEvent(new_e);
+                });
+            }           
+        }
+
+        this._layers.push(layer);
+        this._topLayer = layer;
+        // console.log('mapv: add layer %o', layer);
+    }
+}
+
+function createTouchEvent(option) {
+    var ua = /iPhone|iP[oa]d/.test(navigator.userAgent) ? 'iOS' : /Android/.test(navigator.userAgent) ? 'Android' : 'PC';
+
+    var option = option || {};
+    var param = {
+        type: 'touchstart',
+        canBubble: true,
+        cancelable: true,
+        view: window,
+        detail: 0,
+        screenX: 0,
+        screenY: 0,
+        clientX: 0,
+        clientY: 0,
+        ctrlKey: false,
+        altKey: false,
+        shiftKey: false,
+        metaKey: false,
+        touches: 0,
+        targetTouches: 0,
+        changedTouches: 0,
+        scale: 0,
+        rotation: 0,
+        touchItem: 0
+    };
+    
+    for(var i in param) {
+        if(param.hasOwnProperty(i)) {
+            param[i] = option[i] !== undefined ? option[i] : param[i];
+        }
+    }
+    
+    var event = document.createEvent('TouchEvent');
+    
+    // if(ua === 'Android') {
+    //     event.initTouchEvent(param.touchItem, param.touchItem, param.touchItem, param.type, param.view, param.screenX, param.screenY, param.clientX, param.clientY, param.ctrlKey, param.altKey, param.shiftKey, param.metaKey);
+    // } else {
+        event.initTouchEvent(param.type, param.canBubble, param.cancelable, param.view, param.detail, param.screenX, param.screenY, param.clientX, param.clientY, param.ctrlKey, param.altKey, param.shiftKey, param.metaKey, param.touches, param.targetTouches, param.changedTouches, param.scale, param.rotation);
+    // }
+    
+    return event;
 }

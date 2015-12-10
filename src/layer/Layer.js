@@ -39,12 +39,13 @@ function Layer (options) {
     // struct: {index: }
     this._highlightElement = null;  
 
+    this._id = Math.random();
+
     this.dataRangeControl = new DataRangeControl();
     this.Scale = new DrawScale();
 
     this.notify('data');
     this.notify('mapv');
-
 }
 
 util.inherits(Layer, Class);
@@ -58,10 +59,10 @@ util.extend(Layer.prototype, {
 
         this.bindTo('map', this.getMapv());
 
+        var that = this;
+
         this.getMap().addControl(this.dataRangeControl);
         this.getMap().addControl(this.Scale);
-
-        var that = this;
 
         this.canvasLayer = new CanvasLayer({
             map: this.getMap(),
@@ -82,7 +83,6 @@ util.extend(Layer.prototype, {
                 var rect = this.getBoundingClientRect(),
                     x = e.clientX - rect.left,
                     y = e.clientY - rect.top;
-
                 that._resposneToInterect(x, y, 'hover');
 
             },
@@ -102,7 +102,7 @@ util.extend(Layer.prototype, {
 
         this.setCtx(this.canvasLayer.getContainer().getContext(this.getContext()));
 
-        if (this.getAnimation()) {
+        if (this.getAnimation() && this.getDataType() == 'polyline') {
             this.animationLayer = new CanvasLayer({
                 map: this.getMap(),
                 zIndex: this.getZIndex(),
@@ -114,8 +114,8 @@ util.extend(Layer.prototype, {
 
     },
 
-    draw: function () {
-
+    draw: function (remainLayout) {
+        // debugger;
         var me = this;
 
         if (!this.getMapv()) {
@@ -128,55 +128,64 @@ util.extend(Layer.prototype, {
             return false;
         }
 
-        this._calculatePixel();
+        if (!remainLayout) {
+            this._calculatePixel();
+        }
 
-        if (this.getAnimation() !== 'time') {
-
+        // 没有动画，直接绘制
+        if (!this.getAnimation() || this._animationTime) {
             if (this.getContext() == '2d') {
                 ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
             }
-
             this._getDrawer().drawMap();
-
         }
 
-
-        if (this.getDataType() === 'polyline' && this.getAnimation() && !this._animationFlag) {
-            this.drawAnimation();
-
-            this._animationFlag = true;
-        }
-
+        // 带动画的绘制
         var animationOptions = this.getAnimationOptions() || {};
+
+        // polyline animation
         if (this.getDataType() === 'polyline' && this.getAnimation() && !this._animationTime) {
             this._animationTime = true;
-            var timeline = this.timeline = new Animation({
-                duration: animationOptions.duration || 10000,  // 动画时长, 单位毫秒
-                fps: animationOptions.fps || 30,         // 每秒帧数
-                delay: animationOptions.delay || Animation.INFINITE,        // 延迟执行时间，单位毫秒,如果delay为infinite则表示手动执行
-                transition: Transitions[animationOptions.transition || "linear"],
-                onStop: animationOptions.onStop || function (e) { // 调用stop停止时的回调函数
-                    console.log('stop', e);
-                }, 
-                render: function(e) {
-                    if (me.getContext() == '2d') {
-                        ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+            
+            if (this.getAnimation == 'time') { // 时变类型
+                var timeline = this.timeline = new Animation({
+                    duration: animationOptions.duration || 10000,  // 动画时长, 单位毫秒
+                    fps: animationOptions.fps || 30,         // 每秒帧数
+                    delay: animationOptions.delay || Animation.INFINITE,        // 延迟执行时间，单位毫秒,如果delay为infinite则表示手动执行
+                    transition: Transitions[animationOptions.transition || "linear"],
+                    onStop: animationOptions.onStop || function (e) { // 调用stop停止时的回调函数
+                        console.log('stop', e);
+                    }, 
+                    render: function(e) {
+                        if (me.getContext() == '2d') {
+                            ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+                        }
+                        var time = parseInt(parseFloat(me._minTime) + (me._maxTime - me._minTime) * e);
+                        me._getDrawer().drawMap(time);
+
+                        animationOptions.render && animationOptions.render(time);
+
                     }
-                    var time = parseInt(parseFloat(me._minTime) + (me._maxTime - me._minTime) * e);
-                    me._getDrawer().drawMap(time);
+                });
 
-                    animationOptions.render && animationOptions.render(time);
+                timeline.setFinishCallback(function(){
+                    //setTimeout(function(){
+                        timeline.start();
+                    //}, 3000);
+                });
 
+                timeline.start();
+
+
+            } else {
+                if (this.getContext() == '2d') {
+                    ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
                 }
-            });
 
-            timeline.setFinishCallback(function(){
-                //setTimeout(function(){
-                    timeline.start();
-                //}, 3000);
-            });
+                this._getDrawer().drawMap();
+                this.drawAnimation();
+            }
 
-            timeline.start();
         }
 
         // bubble animation
@@ -204,9 +213,16 @@ util.extend(Layer.prototype, {
             timeline.start();
         }
 
+
         // simple icon animation
         if (this.getAnimation() && !this._animationTime && this.getDrawOptions().icon) {
             this._animationTime = true;
+
+            if (this.getContext() == '2d') {
+                ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+            }
+            this._getDrawer().drawMap();
+
             var canvas = me.canvasLayer.getContainer();
             canvas.style.transform = "translate(0, -100)";
             canvas.style.opacity = 0;
@@ -228,10 +244,12 @@ util.extend(Layer.prototype, {
             });
 
             timeline.start();
+
         }
 
         this.dispatchEvent('draw');
 
+        return true;
     },
 
     drawAnimation: function () {
@@ -254,32 +272,39 @@ util.extend(Layer.prototype, {
     },
 
     animation_changed: function () {
+        // console.log('animation_changed');
         if (this.getAnimation()) {
             this.drawAnimation();
         }
     },
 
     mapv_changed: function () {
-
+        // console.log('mapv_changed');
         if (!this.getMapv()) {
             this.canvasLayer && this.canvasLayer.hide();
             return;
         } else {
             this.canvasLayer && this.canvasLayer.show();
         }
+
         this.initialize();
 
         this.updateControl();
 
         this.draw();
+
+        this.getMapv().addLayer(this);
+
     },
 
     drawType_changed: function () {
+        // console.log('dataType_changed');
         this.updateControl();
         this.draw();
     },
 
     drawOptions_changed: function () {
+        // console.log('drawOptions_changed');
         this.draw();
     },
 
@@ -368,8 +393,16 @@ util.extend(Layer.prototype, {
         console.timeEnd('parseData');
     },
     data_changed: function () {
+        // console.log('data_changed');
         var data = this.getData();
         if (data) {
+            // 对气泡从大到小进行排序，确保小气泡总是画在大气泡的上面
+            if (this.getDrawType() === 'bubble') {
+                data.sort(function(a, b) {
+                    return b.count - a.count;
+                });
+            }
+
             if (this.getDataType() === "polyline" && this.getAnimation()) {
                 for (var i = 0; i < data.length; i++) {
                     data[i].index = parseInt(Math.random() * data[i].geo.length, 10);
@@ -411,6 +444,7 @@ util.extend(Layer.prototype, {
         }
     },
     getDataRange: function () {
+        // console.log('data_range_changed');
         return {
             minTime: this._minTime,
             maxTime: this._maxTime,
@@ -419,11 +453,13 @@ util.extend(Layer.prototype, {
         };
     },
     zIndex_changed: function () {
+        // console.log('zIndex_changed');
         var zIndex = this.getZIndex();
         this.canvasLayer.setZIndex(zIndex);
     },
 
     dataRangeControl_changed: function () {
+        // console.log('dataRangeControl_changed');
         this.updateControl();
         this._getDrawer().notify('drawOptions');
     },
@@ -432,7 +468,7 @@ util.extend(Layer.prototype, {
         // console.log("highlight element changed: %o", this._highlightElement);
         // 画icon暂时不重绘
         if (!(this.getDrawType() == "simple" && this.getDrawOptions().icon)) {
-            this.draw();
+            this.draw(true);
         }
     },
 
@@ -442,10 +478,10 @@ util.extend(Layer.prototype, {
             // find out the click point in which path
             var paths = drawer.getElementPaths();
             var ctx = this.getCtx();
+            var data = this.getData();
 
-            if (this._highlightElement && this._highlightElement.index) {
+            if (this._highlightElement) {
                 if (ctx.isPointInPath(paths[this._highlightElement.index], x, y)) {
-                    // console.log("already trigged!");
                     if (type == "click" || type == "tap") {
                         if (cb && typeof(cb) == 'function') {
                             cb(data[this._highlightElement.index], this.highlightElement.index);
@@ -490,6 +526,13 @@ util.extend(Layer.prototype, {
         else if (type == 'tap')
             return this.getTap();
         else
+            return null;
+    },
+
+    getCanvas: function() {
+        if (this.canvasLayer)
+            return this.canvasLayer.getContainer();
+        else 
             return null;
     }
 
