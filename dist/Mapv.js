@@ -956,6 +956,10 @@ function Mapv(options) {
 
     this._topLayer = null;
 
+    this._container = this.getMap().getContainer();
+
+    this._initEvents();
+
     //this._initDrawScale();
     this._fixPinchZoom();
 
@@ -981,6 +985,31 @@ Mapv.prototype.drawTypeControl_changed = function () {
             this.getMap().removeControl(this.drawTypeControl);
         }
     }
+};
+
+Mapv.prototype._initEvents = function () {
+    var bmap = this.getMap();
+    var that = this;
+    bmap.addEventListener('touchstart', function (e) {
+        var pointer = e.targetTouches ? e.targetTouches[0] : null;
+        if (pointer) {
+            var rect = this.getContainer().getBoundingClientRect(),
+                x = pointer.clientX - rect.left,
+                y = pointer.clientY - rect.top;
+
+            var layers = that._layers;
+            var results = [];
+
+            for (var i = 0; i < layers.length; i++) {
+                var layer = layers[i];
+                var elem = layer.findElementAtPoint(x, y);
+                if (elem) {
+                    results.push(elem);
+                }
+            }
+            console.log("find elements at (%f, %f) : %o", x, y, results);
+        }
+    });
 };
 
 // 执行pinch手势操作后，将地图的中心点改为两个触摸点的中心点，
@@ -1021,27 +1050,35 @@ Mapv.prototype._fixPinchZoom = function () {
 
 Mapv.prototype.addLayer = function (layer) {
     if (layer) {
-        // 将事件重新派发给下一层
+        // 将事件重新派发给下一个图层
         if (this._topLayer) {
             var lastTopLayer = this._topLayer;
-            var events = ['mousemove', 'click', 'touchstart', 'touchcancel', 'touchend'];
+            var events = ['mousemove', 'click', 'touchstart', 'touchmove', 'touchcancel', 'touchend'];
             for (var i = 0; i < events.length; i++) {
                 layer.getCanvas().addEventListener(events[i], function (e) {
                     var new_e;
 
+                    // 自己生成的TouchEvent不能正常工作，只好用自定义的事件类型来模拟
+                    // 注意：不能将type设为TouchEvent的同名事件类型，这样会造成父容器监听到多次相同的touchevent
+                    // （如在两层的情况下，单击一次，地图会监听到两次单击，进行放大）
                     if (e.type.indexOf("touch") >= 0) {
-                        // new_e = document.createEvent('TouchEvent');
-                        // new_e.targetTouches = e.targetTouches;
-                        // new_e.changedTouches = e.changedTouches;
+                        new_e = document.createEvent('Event');
+                        new_e.initEvent(e.type + '_n', true, true);
 
-                        // new_e.initTouchEvent("touchstart", true, true);
+                        var param = {
+                            touches: 0,
+                            targetTouches: 0,
+                            changedTouches: 0
+                        };
 
-                        new_e = createTouchEvent(e);
-                        // new_e.initTouchEvent("touchstart", true, true, window, null, 0, 0, 0, 0, false, false, false, false, e.touches, e.targetTouches, e.changedTouches, 1, 0);
-                    } else {
-                            new_e = new e.constructor(e.type, e);
+                        for (var i in param) {
+                            new_e[i] = e[i];
                         }
-                    alert(new_e.targetTouches);
+                    } else {
+                        // 鼠标事件可以
+                        new_e = new e.constructor(e.type, e);
+                    }
+
                     lastTopLayer.getCanvas().dispatchEvent(new_e);
                 });
             }
@@ -1049,7 +1086,6 @@ Mapv.prototype.addLayer = function (layer) {
 
         this._layers.push(layer);
         this._topLayer = layer;
-        // console.log('mapv: add layer %o', layer);
     }
 };
 
@@ -1087,11 +1123,11 @@ function createTouchEvent(option) {
 
     var event = document.createEvent('TouchEvent');
 
-    // if(ua === 'Android') {
-    //     event.initTouchEvent(param.touchItem, param.touchItem, param.touchItem, param.type, param.view, param.screenX, param.screenY, param.clientX, param.clientY, param.ctrlKey, param.altKey, param.shiftKey, param.metaKey);
-    // } else {
-    event.initTouchEvent(param.type, param.canBubble, param.cancelable, param.view, param.detail, param.screenX, param.screenY, param.clientX, param.clientY, param.ctrlKey, param.altKey, param.shiftKey, param.metaKey, param.touches, param.targetTouches, param.changedTouches, param.scale, param.rotation);
-    // }
+    if (ua === 'Android') {
+        event.initTouchEvent(param.touchItem, param.touchItem, param.touchItem, param.type, param.view, param.screenX, param.screenY, param.clientX, param.clientY, param.ctrlKey, param.altKey, param.shiftKey, param.metaKey);
+    } else {
+        event.initTouchEvent(param.type, param.canBubble, param.cancelable, param.view, param.detail, param.screenX, param.screenY, param.clientX, param.clientY, param.ctrlKey, param.altKey, param.shiftKey, param.metaKey, param.touches, param.targetTouches, param.changedTouches, param.scale, param.rotation);
+    }
 
     return event;
 }
@@ -1212,42 +1248,44 @@ CanvasLayer.prototype._handleTapEvent = function () {
         var _cachedY = 0;
         var _touches;
 
-        canvas.addEventListener('touchstart', function (e) {
-            var pointer = e.targetTouches[0];
-            _currX = _cachedX = pointer.clientX;
-            _currY = _cachedY = pointer.clientY;
-            _touchStarted = true;
-            (function (e) {
-                setTimeout(function () {
-                    if (_cachedX == _currX && !_touchStarted & _cachedY == _currY) {
-                        _handler.call(canvas, e);
-                    }
-                }, 200);
-            })(e);
+        var handlers = {
+            "touchstart": function touchstart(e) {
+                // console.log(e.type);
+                var pointer = e.targetTouches[0];
+                _currX = _cachedX = pointer.clientX;
+                _currY = _cachedY = pointer.clientY;
+                _touchStarted = true;
+                (function (e) {
+                    setTimeout(function () {
+                        if (_cachedX == _currX && !_touchStarted & _cachedY == _currY) {
+                            _handler.call(canvas, e);
+                        }
+                    }, 200);
+                })(e);
+            },
 
-            // if (e.targetTouches.length == 2) {
-            //     _touches = e.targetTouches;
-            //     console.log(JSON.stringify(e.targetTouches));
-            // }
-        });
+            "touchend": function touchend(e) {
+                // console.log(e.type);
+                _touchStarted = false;
+            },
 
-        canvas.addEventListener('touchend', function (e) {
-            _touchStarted = false;
-            // console.log(e);
-            // console.log(JSON.stringify(e.changedTouches));
-        });
+            "touchmove": function touchmove(e) {
+                // console.log(e.type);
+                var pointer = e.changedTouches[0];
+                _currX = pointer.clientX;
+                _currY = pointer.clientY;
+            }
+        };
 
-        canvas.addEventListener('touchcancel', function (e) {
-            _touchStarted = false;
-            // console.log(e);
-            // console.log(JSON.stringify(e.changedTouches));
-        });
+        // touchxx_n为上一层派发下来的自定义事件，这样就能确保每一层都能响应到用户的交互操作
+        canvas.addEventListener('touchstart', handlers["touchstart"]);
+        canvas.addEventListener('touchstart_n', handlers["touchstart"]);
 
-        canvas.addEventListener('touchmove', function (e) {
-            var pointer = e.changedTouches[0];
-            _currX = pointer.clientX;
-            _currY = pointer.clientY;
-        });
+        canvas.addEventListener('touchend', handlers["touchend"]);
+        canvas.addEventListener('touchend_n', handlers["touchend"]);
+
+        canvas.addEventListener('touchmove', handlers["touchmove"]);
+        canvas.addEventListener('touchmove_n', handlers["touchmove"]);
     }
 };
 /**
@@ -1732,7 +1770,7 @@ util.extend(Layer.prototype, {
                             cb(data[this._highlightElement.index], this.highlightElement.index);
                         }
                     }
-                    return;
+                    return this._highlightElement;
                 }
             }
 
@@ -1759,6 +1797,38 @@ util.extend(Layer.prototype, {
                     }
                 }
             }
+
+            return this._highlightElement;
+        }
+    },
+
+    findElementAtPoint: function findElementAtPoint(x, y) {
+        var drawer = this._getDrawer();
+        if (drawer) {
+            // find out the click point in which path
+            var paths = drawer.getElementPaths();
+            var ctx = this.getCtx();
+            var data = this.getData();
+
+            if (this._highlightElement) {
+                if (ctx.isPointInPath(paths[this._highlightElement.index], x, y)) {
+                    return this._highlightElement;
+                }
+            }
+
+            var newHighlightElement = null;
+            for (var i = 0; i < paths.length; i++) {
+                if (ctx.isPointInPath(paths[i], x, y)) {
+                    // bingo!
+                    // console.log("bingo");
+                    var data = this.getData();
+                    newHighlightElement = { index: i, data: data[i] };
+                    break;
+                }
+            }
+            // this._highlightElement = newHighlightElement;
+
+            return newHighlightElement;
         }
     },
 
@@ -4421,18 +4491,20 @@ SimpleDrawer.prototype.drawMap = function (time) {
 SimpleDrawer.prototype.drawIcon = function (ctx, item, icon) {
     var that = this;
 
-    if (this.iconImage) {
-        this.drawImage(ctx, item, icon, this.iconImage);
-    } else {
-        var image = new Image();
-        (function (item, icon) {
-            image.onload = function () {
-                that.iconImage = image;
-                that.drawImage(ctx, item, icon, image);
-            };
-        })(item, icon);
-        image.src = icon.url;
-    }
+    //TODO: 缓存图片后在移动端下会出问题
+    // if (this.iconImage) {
+    //     this.drawImage(ctx, item, icon, this.iconImage);
+
+    // } else {
+    var image = new Image();
+    (function (item, icon) {
+        image.onload = function () {
+            that.iconImage = image;
+            that.drawImage(ctx, item, icon, image);
+        };
+    })(item, icon);
+    image.src = icon.url;
+    // }
 };
 
 SimpleDrawer.prototype.drawImage = function (ctx, item, icon, image) {

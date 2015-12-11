@@ -168,10 +168,11 @@ SimpleDrawer.prototype.drawMap = function(time) {
 SimpleDrawer.prototype.drawIcon = function(ctx, item, icon) {
     var that = this;
 
-    if (this.iconImage) {
-        this.drawImage(ctx, item, icon, this.iconImage);
+    //TODO: 缓存图片后在移动端下会出问题
+    // if (this.iconImage) {
+    //     this.drawImage(ctx, item, icon, this.iconImage);
 
-    } else {
+    // } else {
         var image = new Image();
         (function (item, icon){
             image.onload = function () {
@@ -180,7 +181,7 @@ SimpleDrawer.prototype.drawIcon = function(ctx, item, icon) {
             }
         })(item, icon);
         image.src = icon.url;
-    }
+    // }
     
 }
 

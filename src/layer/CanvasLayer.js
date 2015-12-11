@@ -122,41 +122,43 @@ CanvasLayer.prototype._handleTapEvent = function() {
         var _cachedY = 0;
         var _touches;
 
-        canvas.addEventListener('touchstart', function(e) {
-            var pointer = e.targetTouches[0];
-            _currX = _cachedX = pointer.clientX;
-            _currY = _cachedY = pointer.clientY;
-            _touchStarted = true;
-            (function(e) {
-                setTimeout(function() {
-                    if (_cachedX == _currX && !_touchStarted & _cachedY == _currY) {
-                        _handler.call(canvas, e);
-                    }
-                }, 200);
-            })(e); 
+        var handlers = {
+            "touchstart": function(e) {
+                // console.log(e.type);
+                var pointer = e.targetTouches[0];
+                _currX = _cachedX = pointer.clientX;
+                _currY = _cachedY = pointer.clientY;
+                _touchStarted = true;
+                (function(e) {
+                    setTimeout(function() {
+                        if (_cachedX == _currX && !_touchStarted & _cachedY == _currY) {
+                            _handler.call(canvas, e);
+                        }
+                    }, 200);
+                })(e); 
+            },
 
-            // if (e.targetTouches.length == 2) {
-            //     _touches = e.targetTouches;
-            //     console.log(JSON.stringify(e.targetTouches));
-            // }
-        });
+            "touchend": function(e) {
+                // console.log(e.type);
+                _touchStarted = false;
+            },
 
-        canvas.addEventListener('touchend', function(e) {
-            _touchStarted = false;
-            // console.log(e);
-            // console.log(JSON.stringify(e.changedTouches));
-        });
+            "touchmove": function(e) {
+                // console.log(e.type);
+                var pointer = e.changedTouches[0];
+                _currX = pointer.clientX;
+                _currY = pointer.clientY;
+            }
+        };
 
-        canvas.addEventListener('touchcancel', function(e) {
-            _touchStarted = false;
-            // console.log(e);
-            // console.log(JSON.stringify(e.changedTouches));
-        });
+        // touchxx_n为上一层派发下来的自定义事件，这样就能确保每一层都能响应到用户的交互操作
+        canvas.addEventListener('touchstart', handlers["touchstart"]);
+        canvas.addEventListener('touchstart_n', handlers["touchstart"]);
 
-        canvas.addEventListener('touchmove', function(e) {
-            var pointer = e.changedTouches[0];
-            _currX = pointer.clientX;
-            _currY = pointer.clientY;
-        });
+        canvas.addEventListener('touchend', handlers["touchend"]);
+        canvas.addEventListener('touchend_n', handlers["touchend"]);
+
+        canvas.addEventListener('touchmove', handlers["touchmove"]);
+        canvas.addEventListener('touchmove_n', handlers["touchmove"]);
     }
 }

@@ -487,7 +487,7 @@ util.extend(Layer.prototype, {
                             cb(data[this._highlightElement.index], this.highlightElement.index);
                         }
                     }
-                    return;
+                    return this._highlightElement;
                 } 
             }
 
@@ -514,6 +514,39 @@ util.extend(Layer.prototype, {
                     }
                 }
             }
+
+            return this._highlightElement;
+
+        }
+    },
+
+    findElementAtPoint: function(x, y) {
+        var drawer = this._getDrawer();
+        if (drawer) {
+            // find out the click point in which path
+            var paths = drawer.getElementPaths();
+            var ctx = this.getCtx();
+            var data = this.getData();
+
+            if (this._highlightElement) {
+                if (ctx.isPointInPath(paths[this._highlightElement.index], x, y)) {
+                    return this._highlightElement;
+                } 
+            }
+
+            var newHighlightElement = null;
+            for (var i = 0; i < paths.length; i++) {
+                if (ctx.isPointInPath(paths[i], x, y)) {
+                    // bingo!
+                    // console.log("bingo");
+                    var data = this.getData();                   
+                    newHighlightElement = {index: i, data: data[i]};
+                    break;
+                }
+            }
+            // this._highlightElement = newHighlightElement;
+
+            return newHighlightElement;
 
         }
     },
