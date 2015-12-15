@@ -949,7 +949,11 @@ function Mapv(options) {
         drawTypeControl: false,
         drawTypeControlOptions: {
             a: 1
-        }
+        },
+        click: null,
+        hover: null,
+        tap: null
+
     }, options));
 
     this._layers = [];
@@ -990,26 +994,85 @@ Mapv.prototype.drawTypeControl_changed = function () {
 Mapv.prototype._initEvents = function () {
     var bmap = this.getMap();
     var that = this;
-    bmap.addEventListener('touchstart', function (e) {
-        var pointer = e.targetTouches ? e.targetTouches[0] : null;
-        if (pointer) {
-            var rect = this.getContainer().getBoundingClientRect(),
-                x = pointer.clientX - rect.left,
-                y = pointer.clientY - rect.top;
 
-            var layers = that._layers;
-            var results = [];
+    var elementsFound = [];
 
-            for (var i = 0; i < layers.length; i++) {
-                var layer = layers[i];
-                var elem = layer.findElementAtPoint(x, y);
-                if (elem) {
-                    results.push(elem);
-                }
+    var listener = function listener(e) {
+        var rect = this.getBoundingClientRect(),
+            x = e.clientX - rect.left,
+            y = e.clientY - rect.top;
+
+        var layers = that._layers;
+        var results = [];
+
+        var handler = that._getHandler(e.type);
+
+        for (var i = 0; i < layers.length; i++) {
+            var layer = layers[i];
+            var elem = layer.findElementAtPoint(x, y);
+            if (elem) {
+                // 找到一个元素后就往下层搜寻
+                results.push(elem.data);
+                break;
             }
-            console.log("find elements at (%f, %f) : %o", x, y, results);
         }
-    });
+
+        if (elementsFound.length == 0 && results.length == 0) return;
+
+        elementsFound = results;
+
+        // console.log("find elements at (%f, %f) : %o", x, y, results);
+        if (handler && typeof handler == 'function') {
+            handler(results, e);
+        }
+    };
+
+    if (this._getHandler('click')) {
+        bmap.getContainer().addEventListener('click', listener);
+
+        // handle tap event
+        var _touchStarted = false;
+        var _touchMoved = false;
+        var _currX = 0;
+        var _currY = 0;
+        var _cachedX = 0;
+        var _cachedY = 0;
+        var _touches;
+
+        bmap.addEventListener('touchstart', function (e) {
+            var pointer = e.targetTouches[0];
+            _currX = _cachedX = pointer.clientX;
+            _currY = _cachedY = pointer.clientY;
+            _touchStarted = true;
+
+            var that = this;
+            (function (e) {
+                setTimeout(function () {
+                    if (_cachedX == _currX && !_touchStarted & _cachedY == _currY) {
+                        var tap_e = document.createEvent('Event');
+                        tap_e.initEvent('tap', true, true);
+                        tap_e.clientX = _cachedX;
+                        tap_e.clientY = _cachedY;
+                        listener.call(that.getContainer(), tap_e);
+                    }
+                }, 200);
+            })(e);
+        });
+
+        bmap.addEventListener('touchend', function (e) {
+            _touchStarted = false;
+        });
+
+        bmap.addEventListener('touchmove', function (e) {
+            var pointer = e.changedTouches[0];
+            _currX = pointer.clientX;
+            _currY = pointer.clientY;
+        });
+    }
+
+    if (this._getHandler('hover')) {
+        bmap.getContainer().addEventListener('mousemove', listener);
+    }
 };
 
 // 执行pinch手势操作后，将地图的中心点改为两个触摸点的中心点，
@@ -1048,89 +1111,27 @@ Mapv.prototype._fixPinchZoom = function () {
     });
 };
 
+Mapv.prototype._getHandler = function (type) {
+    switch (type) {
+        case 'tap':
+        case 'click':
+            return this.getClick();
+
+        case 'hover':
+        case 'mousemove':
+            return this.getHover();
+
+        default:
+            return null;
+    }
+};
+
 Mapv.prototype.addLayer = function (layer) {
     if (layer) {
-        // 将事件重新派发给下一个图层
-        if (this._topLayer) {
-            var lastTopLayer = this._topLayer;
-            var events = ['mousemove', 'click', 'touchstart', 'touchmove', 'touchcancel', 'touchend'];
-            for (var i = 0; i < events.length; i++) {
-                layer.getCanvas().addEventListener(events[i], function (e) {
-                    var new_e;
-
-                    // 自己生成的TouchEvent不能正常工作，只好用自定义的事件类型来模拟
-                    // 注意：不能将type设为TouchEvent的同名事件类型，这样会造成父容器监听到多次相同的touchevent
-                    // （如在两层的情况下，单击一次，地图会监听到两次单击，进行放大）
-                    if (e.type.indexOf("touch") >= 0) {
-                        new_e = document.createEvent('Event');
-                        new_e.initEvent(e.type + '_n', true, true);
-
-                        var param = {
-                            touches: 0,
-                            targetTouches: 0,
-                            changedTouches: 0
-                        };
-
-                        for (var i in param) {
-                            new_e[i] = e[i];
-                        }
-                    } else {
-                        // 鼠标事件可以
-                        new_e = new e.constructor(e.type, e);
-                    }
-
-                    lastTopLayer.getCanvas().dispatchEvent(new_e);
-                });
-            }
-        }
-
         this._layers.push(layer);
         this._topLayer = layer;
     }
 };
-
-function createTouchEvent(option) {
-    var ua = /iPhone|iP[oa]d/.test(navigator.userAgent) ? 'iOS' : /Android/.test(navigator.userAgent) ? 'Android' : 'PC';
-
-    var option = option || {};
-    var param = {
-        type: 'touchstart',
-        canBubble: true,
-        cancelable: true,
-        view: window,
-        detail: 0,
-        screenX: 0,
-        screenY: 0,
-        clientX: 0,
-        clientY: 0,
-        ctrlKey: false,
-        altKey: false,
-        shiftKey: false,
-        metaKey: false,
-        touches: 0,
-        targetTouches: 0,
-        changedTouches: 0,
-        scale: 0,
-        rotation: 0,
-        touchItem: 0
-    };
-
-    for (var i in param) {
-        if (param.hasOwnProperty(i)) {
-            param[i] = option[i] !== undefined ? option[i] : param[i];
-        }
-    }
-
-    var event = document.createEvent('TouchEvent');
-
-    if (ua === 'Android') {
-        event.initTouchEvent(param.touchItem, param.touchItem, param.touchItem, param.type, param.view, param.screenX, param.screenY, param.clientX, param.clientY, param.ctrlKey, param.altKey, param.shiftKey, param.metaKey);
-    } else {
-        event.initTouchEvent(param.type, param.canBubble, param.cancelable, param.view, param.detail, param.screenX, param.screenY, param.clientX, param.clientY, param.ctrlKey, param.altKey, param.shiftKey, param.metaKey, param.touches, param.targetTouches, param.changedTouches, param.scale, param.rotation);
-    }
-
-    return event;
-}
 /**
  * 一直覆盖在当前地图视野的Canvas对象
  *
@@ -1167,12 +1168,6 @@ CanvasLayer.prototype.initialize = function (map) {
         that.adjustSize();
         that.draw();
     });
-
-    canvas.addEventListener('click', this.options.clickHandler);
-
-    canvas.addEventListener('mousemove', this.options.hoverHandler);
-
-    this._handleTapEvent();
 
     return this.canvas;
 };
@@ -1234,60 +1229,6 @@ CanvasLayer.prototype.setZIndex = function (zIndex) {
 CanvasLayer.prototype.getZIndex = function () {
     return this.zIndex;
 };
-
-CanvasLayer.prototype._handleTapEvent = function () {
-    // canvas.addEventListener('touchstart', this.options.tapHandler);
-    var canvas = this.canvas;
-    var _handler = this.options.tapHandler;
-    if (_handler && typeof _handler == 'function') {
-        var _touchStarted = false;
-        var _touchMoved = false;
-        var _currX = 0;
-        var _currY = 0;
-        var _cachedX = 0;
-        var _cachedY = 0;
-        var _touches;
-
-        var handlers = {
-            "touchstart": function touchstart(e) {
-                // console.log(e.type);
-                var pointer = e.targetTouches[0];
-                _currX = _cachedX = pointer.clientX;
-                _currY = _cachedY = pointer.clientY;
-                _touchStarted = true;
-                (function (e) {
-                    setTimeout(function () {
-                        if (_cachedX == _currX && !_touchStarted & _cachedY == _currY) {
-                            _handler.call(canvas, e);
-                        }
-                    }, 200);
-                })(e);
-            },
-
-            "touchend": function touchend(e) {
-                // console.log(e.type);
-                _touchStarted = false;
-            },
-
-            "touchmove": function touchmove(e) {
-                // console.log(e.type);
-                var pointer = e.changedTouches[0];
-                _currX = pointer.clientX;
-                _currY = pointer.clientY;
-            }
-        };
-
-        // touchxx_n为上一层派发下来的自定义事件，这样就能确保每一层都能响应到用户的交互操作
-        canvas.addEventListener('touchstart', handlers["touchstart"]);
-        canvas.addEventListener('touchstart_n', handlers["touchstart"]);
-
-        canvas.addEventListener('touchend', handlers["touchend"]);
-        canvas.addEventListener('touchend_n', handlers["touchend"]);
-
-        canvas.addEventListener('touchmove', handlers["touchmove"]);
-        canvas.addEventListener('touchmove_n', handlers["touchmove"]);
-    }
-};
 /**
  * @author nikai (@胖嘟嘟的骨头, nikai@baidu.com)
  */
@@ -1316,14 +1257,7 @@ function Layer(options) {
         animation: false,
         geometry: null,
         dataRangeControl: true,
-        zIndex: 1,
-
-        // @handler: function(element, index)
-        // @element: hovered/clicked data item, element is null when hover out
-        // @index: the position of hovered/clicked/tapped item
-        click: null,
-        hover: null,
-        tap: null
+        zIndex: 1
 
     }, options));
 
@@ -1363,28 +1297,6 @@ util.extend(Layer.prototype, {
             paneName: this.getPaneName(),
             update: function update() {
                 that.draw();
-            },
-            clickHandler: function clickHandler(e) {
-                var rect = this.getBoundingClientRect(),
-                    x = e.clientX - rect.left,
-                    y = e.clientY - rect.top;
-                that._resposneToInterect(x, y, 'click');
-            },
-            hoverHandler: function hoverHandler(e) {
-                var rect = this.getBoundingClientRect(),
-                    x = e.clientX - rect.left,
-                    y = e.clientY - rect.top;
-                that._resposneToInterect(x, y, 'hover');
-            },
-            tapHandler: function tapHandler(e) {
-                var pointer = e.targetTouches ? e.targetTouches[0] : null;
-                if (pointer) {
-                    var rect = this.getBoundingClientRect(),
-                        x = pointer.clientX - rect.left,
-                        y = pointer.clientY - rect.top;
-                    // console.log('tap (%d, %d)', x, y);
-                    that._resposneToInterect(x, y, 'tap');
-                }
             },
             elementTag: "canvas"
         });
@@ -1755,53 +1667,6 @@ util.extend(Layer.prototype, {
         }
     },
 
-    _resposneToInterect: function _resposneToInterect(x, y, type) {
-        var drawer = this._getDrawer();
-        if (drawer) {
-            // find out the click point in which path
-            var paths = drawer.getElementPaths();
-            var ctx = this.getCtx();
-            var data = this.getData();
-
-            if (this._highlightElement) {
-                if (ctx.isPointInPath(paths[this._highlightElement.index], x, y)) {
-                    if (type == "click" || type == "tap") {
-                        if (cb && typeof cb == 'function') {
-                            cb(data[this._highlightElement.index], this.highlightElement.index);
-                        }
-                    }
-                    return this._highlightElement;
-                }
-            }
-
-            var newHighlightElement = null;
-            for (var i = 0; i < paths.length; i++) {
-                if (ctx.isPointInPath(paths[i], x, y)) {
-                    // bingo!
-                    // console.log("bingo");
-                    var data = this.getData();
-                    newHighlightElement = { index: i, data: data[i] };
-                    break;
-                }
-            }
-
-            if (this._highlightElement !== newHighlightElement) {
-                this._highlightElement = newHighlightElement;
-                this.notify("highlightElement");
-                var cb = this._getHandler(type);
-                if (cb && typeof cb == 'function') {
-                    if (newHighlightElement) {
-                        cb(data[newHighlightElement.index], newHighlightElement.index);
-                    } else {
-                        cb(null);
-                    }
-                }
-            }
-
-            return this._highlightElement;
-        }
-    },
-
     findElementAtPoint: function findElementAtPoint(x, y) {
         var drawer = this._getDrawer();
         if (drawer) {
@@ -1826,7 +1691,11 @@ util.extend(Layer.prototype, {
                     break;
                 }
             }
-            // this._highlightElement = newHighlightElement;
+
+            if (this._highlightElement !== newHighlightElement) {
+                this._highlightElement = newHighlightElement;
+                this.notify("highlightElement");
+            }
 
             return newHighlightElement;
         }

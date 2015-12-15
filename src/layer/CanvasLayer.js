@@ -35,12 +35,6 @@ CanvasLayer.prototype.initialize = function(map){
         that.adjustSize();
         that.draw();
     });
-
-    canvas.addEventListener('click', this.options.clickHandler);
-
-    canvas.addEventListener('mousemove', this.options.hoverHandler);
-
-    this._handleTapEvent();
     
     return this.canvas;
 }
@@ -107,58 +101,4 @@ CanvasLayer.prototype.setZIndex = function(zIndex){
 
 CanvasLayer.prototype.getZIndex = function(){
     return this.zIndex;
-}
-
-CanvasLayer.prototype._handleTapEvent = function() {
-    // canvas.addEventListener('touchstart', this.options.tapHandler);
-    var canvas = this.canvas;
-    var _handler = this.options.tapHandler;
-    if (_handler && typeof(_handler) == 'function') {
-        var _touchStarted = false;
-        var _touchMoved = false;
-        var _currX = 0;
-        var _currY = 0;
-        var _cachedX = 0;
-        var _cachedY = 0;
-        var _touches;
-
-        var handlers = {
-            "touchstart": function(e) {
-                // console.log(e.type);
-                var pointer = e.targetTouches[0];
-                _currX = _cachedX = pointer.clientX;
-                _currY = _cachedY = pointer.clientY;
-                _touchStarted = true;
-                (function(e) {
-                    setTimeout(function() {
-                        if (_cachedX == _currX && !_touchStarted & _cachedY == _currY) {
-                            _handler.call(canvas, e);
-                        }
-                    }, 200);
-                })(e); 
-            },
-
-            "touchend": function(e) {
-                // console.log(e.type);
-                _touchStarted = false;
-            },
-
-            "touchmove": function(e) {
-                // console.log(e.type);
-                var pointer = e.changedTouches[0];
-                _currX = pointer.clientX;
-                _currY = pointer.clientY;
-            }
-        };
-
-        // touchxx_n为上一层派发下来的自定义事件，这样就能确保每一层都能响应到用户的交互操作
-        canvas.addEventListener('touchstart', handlers["touchstart"]);
-        canvas.addEventListener('touchstart_n', handlers["touchstart"]);
-
-        canvas.addEventListener('touchend', handlers["touchend"]);
-        canvas.addEventListener('touchend_n', handlers["touchend"]);
-
-        canvas.addEventListener('touchmove', handlers["touchmove"]);
-        canvas.addEventListener('touchmove_n', handlers["touchmove"]);
-    }
 }

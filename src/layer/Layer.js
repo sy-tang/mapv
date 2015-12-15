@@ -24,15 +24,8 @@ function Layer (options) {
         animation: false,
         geometry: null,
         dataRangeControl: true,
-        zIndex: 1,
+        zIndex: 1
         
-        // @handler: function(element, index)
-        // @element: hovered/clicked data item, element is null when hover out
-        // @index: the position of hovered/clicked/tapped item 
-        click: null,
-        hover: null,
-        tap: null  
-
     }, options));
 
     // hold the element drawed in the layer that need to highlight
@@ -71,31 +64,6 @@ util.extend(Layer.prototype, {
             paneName : this.getPaneName(),
             update: function () {
                 that.draw();
-            },
-            clickHandler: function(e) {
-                var rect = this.getBoundingClientRect(),
-                    x = e.clientX - rect.left,
-                    y = e.clientY - rect.top;
-                that._resposneToInterect(x, y, 'click');
-                
-            },
-            hoverHandler: function(e) {
-                var rect = this.getBoundingClientRect(),
-                    x = e.clientX - rect.left,
-                    y = e.clientY - rect.top;
-                that._resposneToInterect(x, y, 'hover');
-
-            },
-            tapHandler: function(e) {
-                var pointer = e.targetTouches ? e.targetTouches[0] : null;
-                if (pointer) {
-                    var rect = this.getBoundingClientRect(),
-                        x = pointer.clientX - rect.left,
-                        y = pointer.clientY - rect.top;
-                    // console.log('tap (%d, %d)', x, y);
-                    that._resposneToInterect(x, y, 'tap');
-                }
-                
             },
             elementTag: "canvas"
         });
@@ -472,54 +440,6 @@ util.extend(Layer.prototype, {
         }
     },
 
-    _resposneToInterect: function(x, y, type) {
-        var drawer = this._getDrawer();
-        if (drawer) {
-            // find out the click point in which path
-            var paths = drawer.getElementPaths();
-            var ctx = this.getCtx();
-            var data = this.getData();
-
-            if (this._highlightElement) {
-                if (ctx.isPointInPath(paths[this._highlightElement.index], x, y)) {
-                    if (type == "click" || type == "tap") {
-                        if (cb && typeof(cb) == 'function') {
-                            cb(data[this._highlightElement.index], this.highlightElement.index);
-                        }
-                    }
-                    return this._highlightElement;
-                } 
-            }
-
-            var newHighlightElement = null;
-            for (var i = 0; i < paths.length; i++) {
-                if (ctx.isPointInPath(paths[i], x, y)) {
-                    // bingo!
-                    // console.log("bingo");
-                    var data = this.getData();                   
-                    newHighlightElement = {index: i, data: data[i]};
-                    break;
-                }
-            }
-
-            if (this._highlightElement !== newHighlightElement) {
-                this._highlightElement = newHighlightElement;
-                this.notify("highlightElement");
-                var cb = this._getHandler(type);
-                if (cb && typeof(cb) == 'function') {
-                    if (newHighlightElement) {
-                        cb(data[newHighlightElement.index], newHighlightElement.index);
-                    } else {
-                        cb(null);
-                    }
-                }
-            }
-
-            return this._highlightElement;
-
-        }
-    },
-
     findElementAtPoint: function(x, y) {
         var drawer = this._getDrawer();
         if (drawer) {
@@ -544,10 +464,13 @@ util.extend(Layer.prototype, {
                     break;
                 }
             }
-            // this._highlightElement = newHighlightElement;
+
+            if (this._highlightElement !== newHighlightElement) {
+                this._highlightElement = newHighlightElement;
+                this.notify("highlightElement");
+            }
 
             return newHighlightElement;
-
         }
     },
 
