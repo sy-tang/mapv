@@ -95,7 +95,6 @@ SimpleDrawer.prototype.drawMap = function(time) {
     } else { // 画点
 
         var iconScheme = drawOptions.icon;
-        var shape = drawOptions.shape || 'circle';
         var highlightElement = this.getHighlightElement(); 
 
             for (var i = 0, len = data.length; i < len; i++) {
@@ -135,6 +134,7 @@ SimpleDrawer.prototype.drawMap = function(time) {
 
                 } else {
                     var radius = this.getRadius() * scale;
+                    var shape = item.shape || drawOptions.shape || 'circle';
 
                     switch(shape) {
                         case 'rect': 

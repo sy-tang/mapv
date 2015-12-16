@@ -4319,7 +4319,6 @@ SimpleDrawer.prototype.drawMap = function (time) {
         // 画点
 
         var iconScheme = drawOptions.icon;
-        var shape = drawOptions.shape || 'circle';
         var highlightElement = this.getHighlightElement();
 
         for (var i = 0, len = data.length; i < len; i++) {
@@ -4358,6 +4357,7 @@ SimpleDrawer.prototype.drawMap = function (time) {
                 path.rect(x, y, width, height);
             } else {
                 var radius = this.getRadius() * scale;
+                var shape = item.shape || drawOptions.shape || 'circle';
 
                 switch (shape) {
                     case 'rect':
