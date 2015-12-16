@@ -133,6 +133,7 @@ var util = {
                             context.backingStorePixelRatio || 1;
 
         return (window.devicePixelRatio || 1) / backingStore;
+        // return 2;
     }
 
 };

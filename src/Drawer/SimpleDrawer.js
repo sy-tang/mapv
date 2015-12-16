@@ -28,9 +28,6 @@ SimpleDrawer.prototype.drawMap = function(time) {
 
     ctx.beginPath();
 
-    var radius = this.getRadius();
-
-
     if (dataType === 'polyline' || dataType === 'polygon') { // 画线或面
 
         var label = drawOptions.label;
@@ -97,67 +94,91 @@ SimpleDrawer.prototype.drawMap = function(time) {
 
     } else { // 画点
 
-        var icon = drawOptions.icon;
-
+        var iconScheme = drawOptions.icon;
+        var shape = drawOptions.shape || 'circle';
         var highlightElement = this.getHighlightElement(); 
-        if (icon || drawOptions.strokeStyle || drawOptions.globalCompositeOperation) {
 
-            console.log('draw icons');
-            // 圆描边或设置颜色叠加方式需要一个个元素进行绘制
             for (var i = 0, len = data.length; i < len; i++) {
                 var item = data[i];
                 // if (item.px < 0 || item.px > ctx.canvas.width || item.py < 0 || item > ctx.canvas.height) {
                 //     continue;
                 // }
-
                 var path = new Path2D();
-                if (icon && icon.show && icon.url) {
+
+                var scale = drawOptions.scaleRange ? Math.sqrt(this.dataRange.getScale(item.count)) : 1;
+
+                if (drawOptions.icon) {
+                    if (drawOptions.scaleRange) {
+                        var icon = util.copy(drawOptions.icon);
+
+                        // console.log(scale);
+                        // debugger;
+                        icon.width *= scale;
+                        icon.height *= scale;
+                        icon.offsetX = icon.offsetX ? icon.offsetX * scale : 0;
+                        icon.offsetY = icon.offsetY ? icon.offsetY * scale : 0;
+                    }
+                    
                     this.drawIcon(ctx, item, icon);
 
                     // add path for event trigger
-                    var sx = icon.sx || 0;
-                    var sy = icon.sy || 0;
-                    var px = icon.px || 0;
-                    var py = icon.py || 0;
+                    var offsetX = icon.offsetX;
+                    var offsetY = icon.offsetY;
                     var width = icon.width || 0;
                     var height = icon.height || 0;
 
                     var path = new Path2D();
-                    var x = item.px - width / 2 - px,
-                        y = item.py - height / 2 - py;
+                    var x = item.px - width / 2 - offsetX,
+                        y = item.py - height / 2 - offsetY;
 
                     path.rect(x, y, width, height);
-                    this._elementPaths.push(path);
 
                 } else {
-                    path.arc(item.px, item.py, radius, 0, 2 * Math.PI, false);
-                    // this._elementPaths.push(path);
+                    var radius = this.getRadius() * scale;
+
+                    switch(shape) {
+                        case 'rect': 
+                            path.moveTo(item.px, item.py);
+                            path.rect(item.px, item.py, radius * 2, radius * 2);
+                            break;
+
+                        case 'triangle':
+                            path.moveTo(item.px, item.py - radius);
+                            path.lineTo(item.px - radius * Math.sqrt(3) / 2, item.py + radius / 2);
+                            path.lineTo(item.px + radius * Math.sqrt(3) / 2, item.py + radius / 2);
+                            path.lineTo(item.px, item.py - radius);
+                            break;
+
+                        case 'diamond':
+                            path.moveTo(item.px, item.py - 1.5 * radius);
+                            path.lineTo(item.px - radius, item.py);
+                            path.lineTo(item.px, item.py + 1.5 * radius);
+                            path.lineTo(item.px + radius, item.py);
+                            path.lineTo(item.px, item.py - 1.5 * radius);
+                            break;
+
+                        case 'circle':
+                        default:
+                            path.moveTo(item.px, item.py);
+                            path.arc(item.px, item.py, radius, 0, 2 * Math.PI, false);
+                    }
+
+                    ctx.save();
+                    if (item.color) {
+                        ctx.fillStyle = item.color;
+                    }
 
                     ctx.fill(path);
                     if (drawOptions.strokeStyle) {
                         ctx.stroke(path);
                     }
 
-                }                
+                    ctx.restore();
+                }
+
+                this._elementPaths.push(path);
             }
 
-        } else {
-            //普通点填充可一起绘制路径，最后再统一填充，性能上会好点
-            for (var i = 0, len = data.length; i < len; i++) {
-                var item = data[i];
-                if (item.px < 0 || item.px > ctx.canvas.width || item.py < 0 || item > ctx.canvas.height) {
-                    continue;
-                }
-                ctx.moveTo(item.px, item.py);
-                if (radius < 2) {
-                    ctx.fillRect(item.px, item.py, radius * 2, radius * 2);
-                } else {
-                    ctx.arc(item.px, item.py, radius, 0, 2 * Math.PI, false);
-                }
-            }
-
-            ctx.fill();
-        }
 
     }
 
@@ -167,41 +188,84 @@ SimpleDrawer.prototype.drawMap = function(time) {
 // 绘制icon
 SimpleDrawer.prototype.drawIcon = function(ctx, item, icon) {
     var that = this;
+    var image = new Image();
+    (function (item, icon){
+        image.onload = function () {
+            // console.log('image loaded');
 
-    //TODO: 缓存图片后在移动端下会出问题
-    // if (this.iconImage) {
-    //     this.drawImage(ctx, item, icon, this.iconImage);
+            var width = icon.width || 0;
+            var height = icon.height || 0;
 
-    // } else {
-        var image = new Image();
-        (function (item, icon){
-            image.onload = function () {
-                that.iconImage = image;
-                that.drawImage(ctx, item, icon, image);
-            }
-        })(item, icon);
-        image.src = icon.url;
+            var color = item.color || icon.color;
+            // console.log(color);
+            // color = null;
+            if (color) {
+                var color = color.replace('rgba(', "").replace(")", "").split(",");
+                // create offscreen buffer, 
+                var buffer = document.createElement('canvas');
+                
+                var bx = buffer.getContext('2d');
+                var pixelRatio = 2;
+
+                buffer.width = width * pixelRatio;
+                buffer.height = height * pixelRatio;
+
+                bx.drawImage(image, 0, 0, buffer.width, buffer.height);
+
+                var imgData = bx.getImageData(0, 0, buffer.width, buffer.height);
+                var data = imgData.data;
+
+                for (var i = 0; i < data.length; i += 4) {
+                    var red = data[i + 0];
+                    var green = data[i + 1];
+                    var blue = data[i + 2];
+                    var alpha = data[i + 3];
+
+                    // skip transparent/semiTransparent pixels
+                    if (alpha < 100 || (red > 200 && green > 200 && blue > 200 )) {
+                        continue;
+                    }
+
+                    data[i + 0] = parseInt(color[0]);
+                    data[i + 1] = parseInt(color[1]);
+                    data[i + 2] = parseInt(color[2]);
+                }
+
+                bx.putImageData(imgData, 0, 0);
+
+                that.drawImage(ctx, item, icon, buffer);
+            
+            } else {
+                that.drawImage(ctx, item ,icon, image);
+            } 
+        }
+    })(item, icon);
+    image.src = icon.url;
+
+    // var path = new Path2D("M256,36.082c-84.553,0-153.105,68.554-153.105,153.106c0,113.559,153.105,286.73,153.105,286.73   s153.106-173.172,153.106-286.73C409.106,104.636,340.552,36.082,256,36.082z M256,253.787c-35.682,0-64.6-28.917-64.6-64.6   s28.918-64.6,64.6-64.6s64.6,28.917,64.6,64.6S291.682,253.787,256,253.787z");
+    // ctx.save();
+    // ctx.scale(0.2, 0.2);
+    // var color = item.color || icon.color;
+    // if (color) {
+    //     ctx.fillStyle = color;
     // }
+    // ctx.fill(path);
     
 }
 
 SimpleDrawer.prototype.drawImage = function(ctx, item, icon, image) {
-    var sx = icon.sx || 0;
-    var sy = icon.sy || 0;
-    var px = icon.px || 0;
-    var py = icon.py || 0;
-    var swidth = icon.swidth || 0;
-    var sheight = icon.sheight || 0;
     var width = icon.width || 0;
     var height = icon.height || 0;
+    var offsetX = icon.offsetX || 0;
+    var offsetY = icon.offsetY || 0;
 
     var pixelRatio = util.getPixelRatio(ctx);
-    var x = item.px - width / 2 - px,
-        y = item.py - height / 2 - py;
+    var x = item.px - width / 2 - offsetX,
+        y = item.py - height / 2 - offsetY;
 
     ctx.save();
     ctx.scale(pixelRatio, pixelRatio);
-    ctx.drawImage(image, sx, sy, swidth, sheight, x, y, width, height);
+    ctx.drawImage(image, x, y, width, height);
     ctx.restore();
 }
 

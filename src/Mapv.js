@@ -83,11 +83,12 @@ Mapv.prototype._initEvents = function() {
             }
         }
 
-        if (elementsFound.length == 0 && results.length == 0)
+        // 当再次hover不到元素时，不执行回调
+        if (e.type == 'mousemove' && elementsFound.length == 0 && results.length == 0)
             return;
 
         elementsFound = results;
-        
+
         // console.log("find elements at (%f, %f) : %o", x, y, results);
         if (handler && typeof handler == 'function') {
             handler(results, e);

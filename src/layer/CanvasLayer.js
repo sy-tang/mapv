@@ -48,16 +48,17 @@ CanvasLayer.prototype.adjustSize = function(){
         pixelRatio = 1;
 
     } else {
-        pixelRatio = (function(context) {
-                var backingStore = context.backingStorePixelRatio ||
-                            context.webkitBackingStorePixelRatio ||
-                            context.mozBackingStorePixelRatio ||
-                            context.msBackingStorePixelRatio ||
-                            context.oBackingStorePixelRatio ||
-                            context.backingStorePixelRatio || 1;
+        // pixelRatio = (function(context) {
+        //         var backingStore = context.backingStorePixelRatio ||
+        //                     context.webkitBackingStorePixelRatio ||
+        //                     context.mozBackingStorePixelRatio ||
+        //                     context.msBackingStorePixelRatio ||
+        //                     context.oBackingStorePixelRatio ||
+        //                     context.backingStorePixelRatio || 1;
 
-                return (window.devicePixelRatio || 1) / backingStore;
-            })(canvas.getContext('2d'));
+        //         return (window.devicePixelRatio || 1) / backingStore;
+        //     })(canvas.getContext('2d'));
+        pixelRatio = util.getPixelRatio(canvas.getContext('2d'));
     }
 
     canvas.width = size.width * pixelRatio;

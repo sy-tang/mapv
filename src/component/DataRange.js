@@ -59,6 +59,13 @@ util.extend(DataRange.prototype, {
         return size;
     },
 
+    getScale: function (count) {
+        if (!this._linearScale) {
+            this._linearScale = this.generateLinearScale();
+        }
+        return this._linearScale(count);
+    },
+
     // 根据count值获取对应的颜色，在choropleth中使用
     getColorByRange: function (count) {
         var color = 'rgba(50, 50, 255, 1)';
@@ -139,6 +146,18 @@ util.extend(DataRange.prototype, {
             this.get("layer").dataRangeControl.hide();
         }
 
+    },
+
+    generateLinearScale: function() {
+        var drawOptions = this.get("drawOptions");
+        var scaleRange = drawOptions.scaleRange || [0.5, 1.5];
+        return function(v) {
+            if (this._min == this._max) {
+                return 1;
+            } else {
+                return scaleRange[0] + (scaleRange[1] - scaleRange[0]) * (v - this._min) / (this._max - this._min); 
+            }
+        } 
     },
 
     generalSplitList: function () {
