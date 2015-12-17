@@ -4318,88 +4318,96 @@ SimpleDrawer.prototype.drawMap = function (time) {
     } else {
         // 画点
 
-        var iconScheme = drawOptions.icon;
-        var highlightElement = this.getHighlightElement();
-
-        for (var i = 0, len = data.length; i < len; i++) {
-            var item = data[i];
-            // if (item.px < 0 || item.px > ctx.canvas.width || item.py < 0 || item > ctx.canvas.height) {
-            //     continue;
-            // }
-            var path = new Path2D();
-
-            var scale = drawOptions.scaleRange ? Math.sqrt(this.dataRange.getScale(item.count)) : 1;
-
-            if (drawOptions.icon) {
-                if (drawOptions.scaleRange) {
-                    var icon = util.copy(drawOptions.icon);
-
-                    // console.log(scale);
-                    // debugger;
-                    icon.width *= scale;
-                    icon.height *= scale;
-                    icon.offsetX = icon.offsetX ? icon.offsetX * scale : 0;
-                    icon.offsetY = icon.offsetY ? icon.offsetY * scale : 0;
-                }
-
-                this.drawIcon(ctx, item, icon);
-
-                // add path for event trigger
-                var offsetX = icon.offsetX;
-                var offsetY = icon.offsetY;
-                var width = icon.width || 0;
-                var height = icon.height || 0;
-
-                var path = new Path2D();
-                var x = item.px - width / 2 - offsetX,
-                    y = item.py - height / 2 - offsetY;
-
-                path.rect(x, y, width, height);
-            } else {
-                var radius = this.getRadius() * scale;
-                var shape = item.shape || drawOptions.shape || 'circle';
-
-                switch (shape) {
-                    case 'rect':
-                        path.moveTo(item.px, item.py);
-                        path.rect(item.px, item.py, radius * 2, radius * 2);
-                        break;
-
-                    case 'triangle':
-                        path.moveTo(item.px, item.py - radius);
-                        path.lineTo(item.px - radius * Math.sqrt(3) / 2, item.py + radius / 2);
-                        path.lineTo(item.px + radius * Math.sqrt(3) / 2, item.py + radius / 2);
-                        path.lineTo(item.px, item.py - radius);
-                        break;
-
-                    case 'diamond':
-                        path.moveTo(item.px, item.py - 1.5 * radius);
-                        path.lineTo(item.px - radius, item.py);
-                        path.lineTo(item.px, item.py + 1.5 * radius);
-                        path.lineTo(item.px + radius, item.py);
-                        path.lineTo(item.px, item.py - 1.5 * radius);
-                        break;
-
-                    case 'circle':
-                    default:
-                        path.moveTo(item.px, item.py);
-                        path.arc(item.px, item.py, radius, 0, 2 * Math.PI, false);
-                }
-
-                ctx.save();
-                if (item.color) {
-                    ctx.fillStyle = item.color;
-                }
-
-                ctx.fill(path);
-                if (drawOptions.strokeStyle) {
-                    ctx.stroke(path);
-                }
-
-                ctx.restore();
+        if (!drawOptions.scaleRange && this.getRadius() < 2) {
+            // 密集的小点，放到一起填充，提高性能
+            var radius = this.getRadius();
+            for (var i = 0, len = data.length; i < len; i++) {
+                var item = data[i];
+                ctx.moveTo(item.px, item.py);
+                ctx.arc(item.px, item.py, radius, 0, 2 * Math.PI, false);
             }
+            ctx.fill();
+        } else {
+            for (var i = 0, len = data.length; i < len; i++) {
+                var item = data[i];
+                // if (item.px < 0 || item.px > ctx.canvas.width || item.py < 0 || item > ctx.canvas.height) {
+                //     continue;
+                // }
+                var path = new Path2D();
 
-            this._elementPaths.push(path);
+                var scale = drawOptions.scaleRange ? Math.sqrt(this.dataRange.getScale(item.count)) : 1;
+
+                if (drawOptions.icon) {
+                    if (drawOptions.scaleRange) {
+                        var icon = util.copy(drawOptions.icon);
+
+                        // console.log(scale);
+                        // debugger;
+                        icon.width *= scale;
+                        icon.height *= scale;
+                        icon.offsetX = icon.offsetX ? icon.offsetX * scale : 0;
+                        icon.offsetY = icon.offsetY ? icon.offsetY * scale : 0;
+                    }
+
+                    this.drawIcon(ctx, item, icon);
+
+                    // add path for event trigger
+                    var offsetX = icon.offsetX;
+                    var offsetY = icon.offsetY;
+                    var width = icon.width || 0;
+                    var height = icon.height || 0;
+
+                    var path = new Path2D();
+                    var x = item.px - width / 2 - offsetX,
+                        y = item.py - height / 2 - offsetY;
+
+                    path.rect(x, y, width, height);
+                } else {
+                    var radius = this.getRadius() * scale;
+                    var shape = item.shape || drawOptions.shape || 'circle';
+
+                    switch (shape) {
+                        case 'rect':
+                            path.moveTo(item.px, item.py);
+                            path.rect(item.px, item.py, radius * 2, radius * 2);
+                            break;
+
+                        case 'triangle':
+                            path.moveTo(item.px, item.py - radius);
+                            path.lineTo(item.px - radius * Math.sqrt(3) / 2, item.py + radius / 2);
+                            path.lineTo(item.px + radius * Math.sqrt(3) / 2, item.py + radius / 2);
+                            path.lineTo(item.px, item.py - radius);
+                            break;
+
+                        case 'diamond':
+                            path.moveTo(item.px, item.py - 1.5 * radius);
+                            path.lineTo(item.px - radius, item.py);
+                            path.lineTo(item.px, item.py + 1.5 * radius);
+                            path.lineTo(item.px + radius, item.py);
+                            path.lineTo(item.px, item.py - 1.5 * radius);
+                            break;
+
+                        case 'circle':
+                        default:
+                            path.moveTo(item.px, item.py);
+                            path.arc(item.px, item.py, radius, 0, 2 * Math.PI, false);
+                    }
+
+                    ctx.save();
+                    if (item.color) {
+                        ctx.fillStyle = item.color;
+                    }
+
+                    ctx.fill(path);
+                    if (drawOptions.strokeStyle) {
+                        ctx.stroke(path);
+                    }
+
+                    ctx.restore();
+                }
+
+                this._elementPaths.push(path);
+            }
         }
     }
 

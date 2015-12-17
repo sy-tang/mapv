@@ -94,9 +94,16 @@ SimpleDrawer.prototype.drawMap = function(time) {
 
     } else { // 画点
 
-        var iconScheme = drawOptions.icon;
-        var highlightElement = this.getHighlightElement(); 
+        if (!drawOptions.scaleRange && this.getRadius() < 2) {  // 密集的小点，放到一起填充，提高性能
+            var radius = this.getRadius();
+            for (var i = 0, len = data.length; i < len; i++) {
+                var item = data[i];
+                ctx.moveTo(item.px, item.py);
+                ctx.arc(item.px, item.py, radius, 0, 2 * Math.PI, false);
+            }
+            ctx.fill();
 
+        } else {
             for (var i = 0, len = data.length; i < len; i++) {
                 var item = data[i];
                 // if (item.px < 0 || item.px > ctx.canvas.width || item.py < 0 || item > ctx.canvas.height) {
@@ -178,6 +185,8 @@ SimpleDrawer.prototype.drawMap = function(time) {
 
                 this._elementPaths.push(path);
             }
+        }
+        
 
 
     }
