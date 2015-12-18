@@ -1414,7 +1414,7 @@ util.extend(Layer.prototype, {
         }
 
         // bubble animation
-        if (this.getDrawType() === 'bubble' && this.getAnimation() && !this._animationTime) {
+        if ((this.getDrawType() === 'bubble' || this.getDrawType() === 'simple') && this.getAnimation() && !this._animationTime) {
             this._animationTime = true;
             var timeline = this.timeline = new Animation({
                 duration: animationOptions.duration || 1000, // 动画时长, 单位毫秒
@@ -1429,12 +1429,11 @@ util.extend(Layer.prototype, {
                     if (me.getContext() == '2d') {
                         ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
                     }
+                    console.log(e);
                     me._getDrawer().drawMap(e);
-
                     animationOptions.render && animationOptions.render(time);
                 }
             });
-
             timeline.start();
         }
 
@@ -2818,7 +2817,6 @@ BubbleDrawer.prototype.drawMap = function (time) {
     var isFinalFrame = true;
 
     if (time !== undefined) {
-        ctx.globalAlpha = time;
         scale *= time;
         ctx.globalAlpha = time;
         if (time < 1) {
@@ -3703,7 +3701,7 @@ util.extend(HeatmapDrawer.prototype, {
     },
 
     radius: function radius(r) {
-
+        console.log('create circle');
         // create a grayscale blurred circle image that we'll use for drawing points
         var circle = this._circle = document.createElement('canvas'),
             ctx = circle.getContext('2d');
@@ -3732,7 +3730,7 @@ util.extend(HeatmapDrawer.prototype, {
             offsetDistance = 10000;
         } else {
             offsetDistance = 0;
-
+            console.log(r2);
             var grad = ctx.createRadialGradient(r2 - offsetDistance, r2 - offsetDistance, 0, r2 - offsetDistance, r2 - offsetDistance, r);
             /* 设定各个位置的颜色 */
             grad.addColorStop(0, 'rgba(0, 0, 0, 1)');
@@ -3827,6 +3825,7 @@ util.extend(HeatmapDrawer.prototype, {
     colorize: function colorize(pixels, gradient) {
         var jMin = 0;
         var jMax = 1024;
+        debugger;
         if (this.masker.min) {
             jMin = this.masker.min / this.getMax() * 1024;
         }
@@ -4324,7 +4323,7 @@ SimpleDrawer.prototype.drawMap = function (time) {
             for (var i = 0, len = data.length; i < len; i++) {
                 var item = data[i];
                 if (item.px < 0 || item.px > ctx.canvas.width || item.py < 0 || item > ctx.canvas.height) {
-                    console.log('out of canvas');
+                    // console.log('out of canvas');
                     continue;
                 }
 
@@ -4333,6 +4332,14 @@ SimpleDrawer.prototype.drawMap = function (time) {
             }
             ctx.fill();
         } else {
+
+            if (time == undefined) {
+                time = 1;
+            }
+            var isFinalFrame = time < 1 ? false : true;
+
+            ctx.globalAlpha = time;
+
             for (var i = 0, len = data.length; i < len; i++) {
                 var item = data[i];
                 // if (item.px < 0 || item.px > ctx.canvas.width || item.py < 0 || item > ctx.canvas.height) {
@@ -4341,7 +4348,9 @@ SimpleDrawer.prototype.drawMap = function (time) {
                 var path = new Path2D();
 
                 var scale = drawOptions.scaleRange ? Math.sqrt(this.dataRange.getScale(item.count)) : 1;
-                console.log(this.dataRange.getScale(item.count));
+
+                scale *= time;
+
                 if (drawOptions.icon) {
                     if (drawOptions.scaleRange) {
                         var icon = util.copy(drawOptions.icon);
@@ -4369,7 +4378,6 @@ SimpleDrawer.prototype.drawMap = function (time) {
                     path.rect(x, y, width, height);
                 } else {
                     var radius = this.getRadius() * scale;
-                    console.log(scale);
                     var shape = item.shape || drawOptions.shape || 'circle';
 
                     switch (shape) {
@@ -4412,7 +4420,7 @@ SimpleDrawer.prototype.drawMap = function (time) {
                     ctx.restore();
                 }
 
-                this._elementPaths.push(path);
+                isFinalFrame && this._elementPaths.push(path);
             }
         }
     }

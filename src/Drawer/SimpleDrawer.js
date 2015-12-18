@@ -99,7 +99,7 @@ SimpleDrawer.prototype.drawMap = function(time) {
             for (var i = 0, len = data.length; i < len; i++) {
                 var item = data[i];
                 if (item.px < 0 || item.px > ctx.canvas.width || item.py < 0 || item > ctx.canvas.height) {
-                    console.log('out of canvas');
+                    // console.log('out of canvas');
                     continue;
                 }
 
@@ -109,6 +109,14 @@ SimpleDrawer.prototype.drawMap = function(time) {
             ctx.fill();
 
         } else {
+
+            if(time == undefined) {
+                time = 1;
+            } 
+            var isFinalFrame = time < 1 ? false : true;
+            
+            ctx.globalAlpha = time;
+
             for (var i = 0, len = data.length; i < len; i++) {
                 var item = data[i];
                 // if (item.px < 0 || item.px > ctx.canvas.width || item.py < 0 || item > ctx.canvas.height) {
@@ -117,7 +125,9 @@ SimpleDrawer.prototype.drawMap = function(time) {
                 var path = new Path2D();
 
                 var scale = drawOptions.scaleRange ? Math.sqrt(this.dataRange.getScale(item.count)) : 1;
-                console.log(this.dataRange.getScale(item.count));
+
+                scale *= time;
+
                 if (drawOptions.icon) {
                     if (drawOptions.scaleRange) {
                         var icon = util.copy(drawOptions.icon);
@@ -146,7 +156,6 @@ SimpleDrawer.prototype.drawMap = function(time) {
 
                 } else {
                     var radius = this.getRadius() * scale;
-                    console.log(scale);
                     var shape = item.shape || drawOptions.shape || 'circle';
 
                     switch(shape) {
@@ -189,12 +198,10 @@ SimpleDrawer.prototype.drawMap = function(time) {
                     ctx.restore();
                 }
 
-                this._elementPaths.push(path);
+                isFinalFrame && this._elementPaths.push(path);
             }
         }
         
-
-
     }
 
     this.endDrawMap();

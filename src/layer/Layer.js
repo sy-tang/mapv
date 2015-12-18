@@ -157,7 +157,7 @@ util.extend(Layer.prototype, {
         }
 
         // bubble animation
-        if (this.getDrawType() === 'bubble' && this.getAnimation() && !this._animationTime) {
+        if ((this.getDrawType() === 'bubble' || this.getDrawType() === 'simple') && this.getAnimation() && !this._animationTime) {
             this._animationTime = true;
             var timeline = this.timeline = new Animation({
                 duration: animationOptions.duration || 1000,  // 动画时长, 单位毫秒
@@ -171,13 +171,11 @@ util.extend(Layer.prototype, {
                     if (me.getContext() == '2d') {
                         ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
                     }
+                    console.log(e);
                     me._getDrawer().drawMap(e);
-
                     animationOptions.render && animationOptions.render(time);
-
                 }
             });
-
             timeline.start();
         }
 

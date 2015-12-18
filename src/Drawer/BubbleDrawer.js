@@ -25,7 +25,6 @@ BubbleDrawer.prototype.drawMap = function (time) {
     var isFinalFrame = true;
 
     if(time !== undefined) {
-        ctx.globalAlpha = time;
         scale *= time;
         ctx.globalAlpha = time;
         if (time < 1) { // animating

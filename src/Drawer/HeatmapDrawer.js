@@ -106,7 +106,7 @@ util.extend(HeatmapDrawer.prototype, {
     },
 
     radius: function (r) {
-
+        console.log('create circle');
         // create a grayscale blurred circle image that we'll use for drawing points
         var circle = this._circle = document.createElement('canvas'),
             ctx = circle.getContext('2d');
@@ -136,7 +136,7 @@ util.extend(HeatmapDrawer.prototype, {
 
         } else {
             offsetDistance = 0;
-
+            console.log(r2);
             var grad  = ctx.createRadialGradient(r2 - offsetDistance, r2 - offsetDistance, 0, r2 - offsetDistance, r2 - offsetDistance, r);
             /* 设定各个位置的颜色 */
             grad.addColorStop(0, 'rgba(0, 0, 0, 1)');
@@ -232,6 +232,7 @@ util.extend(HeatmapDrawer.prototype, {
     colorize: function (pixels, gradient) {
         var jMin = 0;
         var jMax = 1024;
+        debugger;
         if (this.masker.min) {
             jMin = this.masker.min / this.getMax() * 1024;
         }
