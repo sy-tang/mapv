@@ -4323,6 +4323,11 @@ SimpleDrawer.prototype.drawMap = function (time) {
             var radius = this.getRadius();
             for (var i = 0, len = data.length; i < len; i++) {
                 var item = data[i];
+                if (item.px < 0 || item.px > ctx.canvas.width || item.py < 0 || item > ctx.canvas.height) {
+                    console.log('out of canvas');
+                    continue;
+                }
+
                 ctx.moveTo(item.px, item.py);
                 ctx.arc(item.px, item.py, radius, 0, 2 * Math.PI, false);
             }
@@ -4336,7 +4341,7 @@ SimpleDrawer.prototype.drawMap = function (time) {
                 var path = new Path2D();
 
                 var scale = drawOptions.scaleRange ? Math.sqrt(this.dataRange.getScale(item.count)) : 1;
-
+                console.log(this.dataRange.getScale(item.count));
                 if (drawOptions.icon) {
                     if (drawOptions.scaleRange) {
                         var icon = util.copy(drawOptions.icon);
@@ -4364,12 +4369,13 @@ SimpleDrawer.prototype.drawMap = function (time) {
                     path.rect(x, y, width, height);
                 } else {
                     var radius = this.getRadius() * scale;
+                    console.log(scale);
                     var shape = item.shape || drawOptions.shape || 'circle';
 
                     switch (shape) {
                         case 'rect':
-                            path.moveTo(item.px, item.py);
-                            path.rect(item.px, item.py, radius * 2, radius * 2);
+                            path.moveTo(item.px - radius, item.px - radius);
+                            path.rect(item.px - radius, item.py - radius, radius * 2, radius * 2);
                             break;
 
                         case 'triangle':
