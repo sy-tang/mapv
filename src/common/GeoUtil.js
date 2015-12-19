@@ -37,7 +37,7 @@ var GeoUtil = (function() {
 
         var wgLat = wgs.lat, wgLon = wgs.lng;
 
-        if(isInChina(wgLat, wgLon)) {
+        if (isInChina(wgLon, wgLat)) {
             var dLat = transformLat(wgLon - 105.0, wgLat - 35.0);
             var dLon = transformLon(wgLon - 105.0, wgLat - 35.0);
             var radLat = wgLat / 180.0 * pi;
@@ -51,9 +51,12 @@ var GeoUtil = (function() {
                 lng: wgLon + dLon,
                 lat: wgLat + dLat
             }
-
+            
         } else {
-            return wgs;
+            return {
+                lng: wgLon,
+                lat: wgLat
+            }
         }
         
     }
@@ -130,12 +133,11 @@ var GeoUtil = (function() {
         return ret;
     }
 
-    var geoUtil = {
+    return {
         gcj_to_bd: gcj_to_bd,
         bd_to_gcj: bd_to_gcj,
         wgs_to_gcj: wgs_to_gcj,
         wgs_to_bd: wgs_to_bd
-    }
-    return geoUtil;
+    };
 
 })();
