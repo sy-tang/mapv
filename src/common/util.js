@@ -135,5 +135,9 @@ var util = {
         return (window.devicePixelRatio || 1) / backingStore;
         // return 2;
     }
-
 };
+
+
+
+
+

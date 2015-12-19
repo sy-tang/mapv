@@ -16,6 +16,7 @@ gulp.task('script', function() {
     return gulp.src([
         "src/start.js",
         "src/common/util.js",
+        "src/common/GeoUtil.js",
         "src/common/MVCObject.js",
         "src/common/Class.js",
         "src/component/DataRange.js",

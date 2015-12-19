@@ -232,7 +232,6 @@ util.extend(HeatmapDrawer.prototype, {
     colorize: function (pixels, gradient) {
         var jMin = 0;
         var jMax = 1024;
-        debugger;
         if (this.masker.min) {
             jMin = this.masker.min / this.getMax() * 1024;
         }

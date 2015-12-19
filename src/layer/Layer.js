@@ -362,6 +362,22 @@ util.extend(Layer.prototype, {
         // console.log('data_changed');
         var data = this.getData();
         if (data) {
+            // 坐标系转换
+            if (this.getCoordType() == 'gcj-02') {
+                for (var i = 0; i < data.length; i++) {
+                    var transformedGeo = GeoUtil.gcj_to_bd(data[i]);
+                    data[i].lng = transformedGeo.lng;
+                    data[i].lat = transformedGeo.lat;
+                }
+            }
+            if (this.getCoordType() == 'wgs-84') {
+                for (var i = 0; i < data.length; i++) {
+                    var transformedGeo = GeoUtil.wgs_to_bd(data[i]);
+                    data[i].lng = transformedGeo.lng;
+                    data[i].lat = transformedGeo.lat;
+                }
+            }
+
             // 对气泡从大到小进行排序，确保小气泡总是画在大气泡的上面
             if (this.getDrawType() === 'bubble') {
                 data.sort(function(a, b) {
