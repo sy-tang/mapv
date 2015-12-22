@@ -4494,8 +4494,9 @@ SimpleDrawer.prototype.drawMap = function (time) {
                 scale *= time;
 
                 if (drawOptions.icon) {
+                    var icon = util.copy(drawOptions.icon);
+
                     if (drawOptions.scaleRange) {
-                        var icon = util.copy(drawOptions.icon);
 
                         // console.log(scale);
                         // debugger;
