@@ -1476,6 +1476,8 @@ util.extend(Layer.prototype, {
             return;
         }
 
+        this._getDrawer().clearTimer();
+
         var ctx = this.getCtx();
 
         if (!ctx) {
@@ -2930,6 +2932,12 @@ Drawer.prototype.getRadius = function () {
 
 Drawer.prototype.getElementPaths = function () {
     return this._elementPaths;
+};
+
+Drawer.prototype.clearTimer = function () {
+    if (this._timer) {
+        window.clearTimeout(this._timer);
+    }
 };
 /**
  * @author nikai (@胖嘟嘟的骨头, nikai@baidu.com)
@@ -4482,88 +4490,24 @@ SimpleDrawer.prototype.drawMap = function (time) {
 
             ctx.globalAlpha = time;
 
-            for (var i = 0, len = data.length; i < len; i++) {
-                var item = data[i];
-                // if (item.px < 0 || item.px > ctx.canvas.width || item.py < 0 || item > ctx.canvas.height) {
-                //     continue;
-                // }
-                var path = new Path2D();
+            var that = this;
 
-                var scale = drawOptions.scaleRange ? Math.sqrt(this.dataRange.getScale(item.count)) : 1;
-
-                scale *= time;
-
-                if (drawOptions.icon) {
-                    var icon = util.copy(drawOptions.icon);
-
-                    if (drawOptions.scaleRange) {
-
-                        // console.log(scale);
-                        // debugger;
-                        icon.width *= scale;
-                        icon.height *= scale;
-                        icon.offsetX = icon.offsetX ? icon.offsetX * scale : 0;
-                        icon.offsetY = icon.offsetY ? icon.offsetY * scale : 0;
-                    }
-
-                    this.drawIcon(ctx, item, icon);
-
-                    // add path for event trigger
-                    var offsetX = icon.offsetX;
-                    var offsetY = icon.offsetY;
-                    var width = icon.width || 0;
-                    var height = icon.height || 0;
-
-                    var path = new Path2D();
-                    var x = item.px - width / 2 - offsetX,
-                        y = item.py - height / 2 - offsetY;
-
-                    path.rect(x, y, width, height);
+            if (drawOptions.icon) {
+                if (this._cachedImage) {
+                    this.drawIcons(time, this._cachedImage);
                 } else {
-                    var radius = this.getRadius() * scale;
-                    var shape = item.shape || drawOptions.shape || 'circle';
-
-                    switch (shape) {
-                        case 'rect':
-                            path.moveTo(item.px - radius, item.px - radius);
-                            path.rect(item.px - radius, item.py - radius, radius * 2, radius * 2);
-                            break;
-
-                        case 'triangle':
-                            path.moveTo(item.px, item.py - radius);
-                            path.lineTo(item.px - radius * Math.sqrt(3) / 2, item.py + radius / 2);
-                            path.lineTo(item.px + radius * Math.sqrt(3) / 2, item.py + radius / 2);
-                            path.lineTo(item.px, item.py - radius);
-                            break;
-
-                        case 'diamond':
-                            path.moveTo(item.px, item.py - 1.5 * radius);
-                            path.lineTo(item.px - radius, item.py);
-                            path.lineTo(item.px, item.py + 1.5 * radius);
-                            path.lineTo(item.px + radius, item.py);
-                            path.lineTo(item.px, item.py - 1.5 * radius);
-                            break;
-
-                        case 'circle':
-                        default:
-                            path.moveTo(item.px, item.py);
-                            path.arc(item.px, item.py, radius, 0, 2 * Math.PI, false);
-                    }
-
-                    ctx.save();
-                    if (item.color) {
-                        ctx.fillStyle = item.color;
-                    }
-
-                    ctx.fill(path);
-                    if (drawOptions.strokeStyle) {
-                        ctx.stroke(path);
-                    }
-
-                    ctx.restore();
+                    (function (time) {
+                        var image = new Image();
+                        image.onload = function () {
+                            console.log('image loaded');
+                            that._cachedImage = image;
+                            that.drawIcons(time, image);
+                        };
+                        image.src = drawOptions.icon.url;
+                    })(time);
                 }
-
-                isFinalFrame && this._elementPaths.push(path);
+            } else {
+                this.drawShapes(time);
             }
         }
     }
@@ -4571,70 +4515,163 @@ SimpleDrawer.prototype.drawMap = function (time) {
     this.endDrawMap();
 };
 
-// 绘制icon
-SimpleDrawer.prototype.drawIcon = function (ctx, item, icon) {
+SimpleDrawer.prototype.drawShapes = function (time) {
+    if (time == undefined) {
+        time = 1;
+    }
+    var isFinalFrame = time < 1 ? false : true;
+
     var that = this;
-    var image = new Image();
-    (function (item, icon) {
-        image.onload = function () {
-            // console.log('image loaded');
+    var drawOptions = this.getDrawOptions();
+    var data = this.getLayer().getData();
+    var ctx = this.getCtx();
 
-            var width = icon.width || 0;
-            var height = icon.height || 0;
+    ctx.globalAlpha = time;
 
-            var color = item.color || icon.color;
-            // console.log(color);
-            // color = null;
-            if (color) {
-                var color = color.replace('rgba(', "").replace(")", "").split(",");
-                // create offscreen buffer,
-                var buffer = document.createElement('canvas');
+    for (var i = 0, len = data.length; i < len; i++) {
+        var item = data[i];
+        if (item.px < 0 || item.px > ctx.canvas.width || item.py < 0 || item > ctx.canvas.height) {
+            continue;
+        }
+        var path = new Path2D();
 
-                var bx = buffer.getContext('2d');
-                var pixelRatio = 2;
+        var scale = drawOptions.scaleRange ? Math.sqrt(this.dataRange.getScale(item.count)) : 1;
 
-                buffer.width = width * pixelRatio;
-                buffer.height = height * pixelRatio;
+        scale *= time;
 
-                bx.drawImage(image, 0, 0, buffer.width, buffer.height);
+        var radius = this.getRadius() * scale;
+        var shape = item.shape || drawOptions.shape || 'circle';
 
-                var imgData = bx.getImageData(0, 0, buffer.width, buffer.height);
-                var data = imgData.data;
+        switch (shape) {
+            case 'rect':
+                path.moveTo(item.px - radius, item.px - radius);
+                path.rect(item.px - radius, item.py - radius, radius * 2, radius * 2);
+                break;
 
-                for (var i = 0; i < data.length; i += 4) {
-                    var red = data[i + 0];
-                    var green = data[i + 1];
-                    var blue = data[i + 2];
-                    var alpha = data[i + 3];
+            case 'triangle':
+                path.moveTo(item.px, item.py - radius);
+                path.lineTo(item.px - radius * Math.sqrt(3) / 2, item.py + radius / 2);
+                path.lineTo(item.px + radius * Math.sqrt(3) / 2, item.py + radius / 2);
+                path.lineTo(item.px, item.py - radius);
+                break;
 
-                    // skip transparent/semiTransparent pixels
-                    if (alpha < 100 || red > 200 && green > 200 && blue > 200) {
-                        continue;
-                    }
+            case 'diamond':
+                path.moveTo(item.px, item.py - 1.5 * radius);
+                path.lineTo(item.px - radius, item.py);
+                path.lineTo(item.px, item.py + 1.5 * radius);
+                path.lineTo(item.px + radius, item.py);
+                path.lineTo(item.px, item.py - 1.5 * radius);
+                break;
 
-                    data[i + 0] = parseInt(color[0]);
-                    data[i + 1] = parseInt(color[1]);
-                    data[i + 2] = parseInt(color[2]);
-                }
+            case 'circle':
+            default:
+                path.moveTo(item.px, item.py);
+                path.arc(item.px, item.py, radius, 0, 2 * Math.PI, false);
+        }
 
-                bx.putImageData(imgData, 0, 0);
+        ctx.save();
+        if (item.color) {
+            ctx.fillStyle = item.color;
+        }
 
-                that.drawImage(ctx, item, icon, buffer);
-            } else {
-                that.drawImage(ctx, item, icon, image);
+        ctx.fill(path);
+        if (drawOptions.strokeStyle) {
+            ctx.stroke(path);
+        }
+
+        ctx.restore();
+
+        isFinalFrame && this._elementPaths.push(path);
+    }
+};
+
+// 绘制icon
+SimpleDrawer.prototype.drawIcons = function (time, image) {
+    if (time == undefined) {
+        time = 1;
+    }
+    var isFinalFrame = time < 1 ? false : true;
+
+    var that = this;
+    var drawOptions = this.getDrawOptions();
+    var data = this.getLayer().getData();
+    var ctx = this.getCtx();
+
+    var queue = [];
+    var group = [];
+
+    for (var i = 0, len = data.length; i < len; i++) {
+        var item = data[i];
+        if (item.px < 0 || item.px > ctx.canvas.width || item.py < 0 || item > ctx.canvas.height) {
+            continue;
+        }
+
+        var scale = drawOptions.scaleRange ? Math.sqrt(that.dataRange.getScale(item.count)) : 1;
+
+        scale *= time;
+
+        var icon = util.copy(drawOptions.icon);
+
+        if (drawOptions.scaleRange) {
+            // console.log(scale);
+            // debugger;
+            icon.width *= scale;
+            icon.height *= scale;
+            icon.offsetX = icon.offsetX ? icon.offsetX * scale : 0;
+            icon.offsetY = icon.offsetY ? icon.offsetY * scale : 0;
+        }
+
+        if (i % 100 == 0) {
+            group = [];
+            queue.push(group);
+        }
+
+        group.push({
+            item: item, icon: icon
+        });
+
+        // this.drawIcon(ctx, item, icon);
+    }
+
+    if (queue.length > 0) {
+        // console.log('start queue: draw %d icons in total.', data.length);
+        var id = parseInt(Math.random() * 10000);
+        var loop = function loop() {
+            var group = queue.shift();
+
+            ctx.globalAlpha = time;
+
+            // console.log('process %d:  draw %d icons.', id, group.length);
+            for (var i = 0; i < group.length; i++) {
+                var drawObj = group[i];
+                var icon = drawObj.icon;
+                var item = drawObj.item;
+
+                that.drawImage(ctx, drawObj.item, drawObj.icon, image);
+
+                // add path for event trigger
+                var path = new Path2D();
+                var offsetX = icon.offsetX;
+                var offsetY = icon.offsetY;
+                var width = icon.width || 0;
+                var height = icon.height || 0;
+
+                var path = new Path2D();
+                var x = item.px - width / 2 - offsetX,
+                    y = item.py - height / 2 - offsetY;
+
+                path.rect(x, y, width, height);
+
+                ctx.stroke(path);
+
+                isFinalFrame && that._elementPaths.push(path);
+            }
+            if (queue.length > 0) {
+                that._timer = setTimeout(loop, 0);
             }
         };
-    })(item, icon);
-    image.src = icon.url;
-
-    // var path = new Path2D("M256,36.082c-84.553,0-153.105,68.554-153.105,153.106c0,113.559,153.105,286.73,153.105,286.73   s153.106-173.172,153.106-286.73C409.106,104.636,340.552,36.082,256,36.082z M256,253.787c-35.682,0-64.6-28.917-64.6-64.6   s28.918-64.6,64.6-64.6s64.6,28.917,64.6,64.6S291.682,253.787,256,253.787z");
-    // ctx.save();
-    // ctx.scale(0.2, 0.2);
-    // var color = item.color || icon.color;
-    // if (color) {
-    //     ctx.fillStyle = color;
-    // }
-    // ctx.fill(path);
+        that._timer = setTimeout(loop, 0);
+    }
 };
 
 SimpleDrawer.prototype.drawImage = function (ctx, item, icon, image) {
@@ -4647,8 +4684,48 @@ SimpleDrawer.prototype.drawImage = function (ctx, item, icon, image) {
     var x = item.px - width / 2 - offsetX,
         y = item.py - height / 2 - offsetY;
 
+    var color = item.color || icon.color || undefined;
+
     ctx.save();
     ctx.scale(pixelRatio, pixelRatio);
+
+    if (color) {
+        var color = color.replace('rgba(', "").replace(")", "").split(",");
+        // create offscreen buffer,
+        var buffer = document.createElement('canvas');
+
+        var bx = buffer.getContext('2d');
+        var pixelRatio = 2;
+
+        buffer.width = width * pixelRatio;
+        buffer.height = height * pixelRatio;
+
+        bx.drawImage(image, 0, 0, buffer.width, buffer.height);
+
+        var imgData = bx.getImageData(0, 0, buffer.width, buffer.height);
+        var data = imgData.data;
+
+        for (var i = 0; i < data.length; i += 4) {
+            var red = data[i + 0];
+            var green = data[i + 1];
+            var blue = data[i + 2];
+            var alpha = data[i + 3];
+
+            // skip transparent/semiTransparent pixels
+            if (alpha < 100 || red > 200 && green > 200 && blue > 200) {
+                continue;
+            }
+
+            data[i + 0] = parseInt(color[0]);
+            data[i + 1] = parseInt(color[1]);
+            data[i + 2] = parseInt(color[2]);
+        }
+
+        bx.putImageData(imgData, 0, 0);
+
+        image = buffer;
+    }
+
     ctx.drawImage(image, x, y, width, height);
     ctx.restore();
 };

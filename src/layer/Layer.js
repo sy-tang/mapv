@@ -90,6 +90,8 @@ util.extend(Layer.prototype, {
             return;
         }
 
+        this._getDrawer().clearTimer();
+
         var ctx = this.getCtx();
 
         if (!ctx) {

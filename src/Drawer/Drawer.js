@@ -151,5 +151,11 @@ Drawer.prototype.getElementPaths = function() {
     return this._elementPaths;
 };
 
+Drawer.prototype.clearTimer = function() {
+    if (this._timer) {
+        window.clearTimeout(this._timer);
+    }
+}
+
 
 
