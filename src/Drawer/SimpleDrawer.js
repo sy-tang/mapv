@@ -108,34 +108,40 @@ SimpleDrawer.prototype.drawMap = function(time) {
             }
             ctx.fill();
 
-        } else {
-
-            if(time == undefined) {
-                time = 1;
-            } 
-            var isFinalFrame = time < 1 ? false : true;
-            
-            ctx.globalAlpha = time;
+        } else {    
 
             var that = this;
+            var icon = drawOptions.icon;
+            if (icon) {
+                // using icon font
+                if (icon.font && icon.text) {
+                    setTimeout(function() {
+                        console.time('draw font');
+                        that.drawIconsWithFont(icon.font, icon.text, time);
+                        console.timeEnd('draw font');
+                    });
+                }
 
-            if (drawOptions.icon) {
-                if (this._cachedImage) {
-                    this.drawIcons(time, this._cachedImage);
+                // using image
+                if (icon.url) {
+                    if (this._cachedImage) {
+                        this.drawIcons(time, this._cachedImage);
 
-                } else {
-                    (function(time) {
-                        var image = new Image();
-                        image.onload = function() {
-                            console.log('image loaded');
-                            that._cachedImage = image;
-                            that.drawIcons(time, image);
-                        }
-                        image.src = drawOptions.icon.url;
-                    })(time);
+                    } else {
+                        (function(time) {
+                            var image = new Image();
+                            image.onload = function() {
+                                console.log('image loaded');
+                                that._cachedImage = image;
+                                that.drawIconsWithImage(image, time);
+                            }
+                            image.src = drawOptions.icon.url;
+                        })(time);
+                    }
                 }
 
             } else {
+                // using defined shape: circle rect diamond triangle
                 this.drawShapes(time);
             }
             
@@ -217,7 +223,7 @@ SimpleDrawer.prototype.drawShapes = function(time) {
 }
 
 // 绘制icon
-SimpleDrawer.prototype.drawIcons = function(time, image) {
+SimpleDrawer.prototype.drawIconsWithImage = function(image, time) {
     if(time == undefined) {
         time = 1;
     } 
@@ -230,6 +236,7 @@ SimpleDrawer.prototype.drawIcons = function(time, image) {
 
     var queue = [];
     var group = [];
+
 
     for (var i = 0, len = data.length; i < len; i++) {
         var item = data[i];
@@ -270,8 +277,6 @@ SimpleDrawer.prototype.drawIcons = function(time, image) {
         var loop = function() {
             var group = queue.shift();
 
-            ctx.globalAlpha = time;
-
             // console.log('process %d:  draw %d icons.', id, group.length);
             for (var i = 0; i < group.length; i++) {
                 var drawObj = group[i];
@@ -293,7 +298,7 @@ SimpleDrawer.prototype.drawIcons = function(time, image) {
 
                 path.rect(x, y, width, height);
 
-                ctx.stroke(path);
+                // ctx.stroke(path);
 
                 isFinalFrame && that._elementPaths.push(path);
             }
@@ -319,7 +324,6 @@ SimpleDrawer.prototype.drawImage = function(ctx, item, icon, image) {
 
     ctx.save();
     ctx.scale(pixelRatio, pixelRatio);
-    
     if (color) {
         var color = color.replace('rgba(', "").replace(")", "").split(",");
         // create offscreen buffer, 
@@ -361,6 +365,59 @@ SimpleDrawer.prototype.drawImage = function(ctx, item, icon, image) {
     ctx.restore();
 }
 
+SimpleDrawer.prototype.drawIconsWithFont = function(iconfont, text, time) {
+    if(time == undefined) {
+        time = 1;
+    } 
+    var isFinalFrame = time < 1 ? false : true;
+
+    var data = this.getLayer().getData();
+    var ctx = this.getCtx();
+    var drawOptions = this.getDrawOptions();
+    var that = this;
+
+    var baseSize = 16;
+
+    for (var i = 0, len = data.length; i < len; i++) {
+        var item = data[i];
+        if (item.px < 0 || item.px > ctx.canvas.width || item.py < 0 || item > ctx.canvas.height) {
+            continue;
+        }
+        var scale = drawOptions.scaleRange ? Math.sqrt(that.dataRange.getScale(item.count)) : 1;
+
+        // var scale = 1;
+        var icon = util.copy(drawOptions.icon);
+        
+        if (drawOptions.scaleRange) {
+            icon.offsetX = icon.offsetX ? icon.offsetX * scale : 0;
+            icon.offsetY = icon.offsetY ? icon.offsetY * scale : 0;
+        }
+
+        ctx.font = baseSize * scale + "px " + iconfont;
+
+        var width = baseSize * scale * 0.8;
+        var height = baseSize * scale;
+
+        var pixelRatio = util.getPixelRatio(ctx);
+        var x = item.px - width / 2 - icon.offsetX,
+            y = item.py - height / 2 - icon.offsetY;
+
+        ctx.scale(pixelRatio, pixelRatio);
+        ctx.fillStyle = item.color || icon.color;
+        ctx.fillText(text, item.px, item.py + height - 3 * scale);
+        ctx.restore();
+
+        // add path for event trigger
+        var path = new Path2D();
+
+        path.rect(item.px + baseSize * scale * 0.1, item.py, width, height);
+
+        // ctx.stroke(path);
+
+        isFinalFrame && that._elementPaths.push(path);
+    }
+}
+
 /**
  * 绘制动画
  */
@@ -374,7 +431,6 @@ SimpleDrawer.prototype.drawAnimation = function() {
 
     if (dataType === 'polyline') {
         if (animation === 'time') {} else {
-
             for (var i = 0, len = data.length; i < len; i++) {
                 var index = data[i].index;
                 var pgeo = data[i].pgeo;
