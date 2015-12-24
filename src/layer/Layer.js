@@ -158,30 +158,6 @@ util.extend(Layer.prototype, {
 
         }
 
-        // bubble animation
-        if ((this.getDrawType() === 'bubble' || this.getDrawType() === 'simple') && this.getAnimation() && !this._animationTime) {
-            this._animationTime = true;
-            var timeline = this.timeline = new Animation({
-                duration: animationOptions.duration || 1000,  // 动画时长, 单位毫秒
-                fps: animationOptions.fps || 30,         // 每秒帧数
-                delay: animationOptions.delay || Animation.INFINITE,        // 延迟执行时间，单位毫秒,如果delay为infinite则表示手动执行
-                transition: Transitions[animationOptions.transition || "linear"],
-                onStop: animationOptions.onStop || function (e) { // 调用stop停止时的回调函数
-                    console.log('stop', e);
-                }, 
-                render: function(e) {
-                    if (me.getContext() == '2d') {
-                        ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
-                    }
-                    console.log(e);
-                    me._getDrawer().drawMap(e);
-                    animationOptions.render && animationOptions.render(time);
-                }
-            });
-            timeline.start();
-        }
-
-
         // simple icon animation
         if (this.getAnimation() && !this._animationTime && this.getDrawOptions().icon) {
             this._animationTime = true;
@@ -213,6 +189,28 @@ util.extend(Layer.prototype, {
 
             timeline.start();
 
+        }
+
+        if ((this.getDrawType() === 'bubble' || this.getDrawType() === 'simple') && this.getAnimation() && !this._animationTime) {
+            this._animationTime = true;
+            var timeline = this.timeline = new Animation({
+                duration: animationOptions.duration || 1000,  // 动画时长, 单位毫秒
+                fps: animationOptions.fps || 30,         // 每秒帧数
+                delay: animationOptions.delay || Animation.INFINITE,        // 延迟执行时间，单位毫秒,如果delay为infinite则表示手动执行
+                transition: Transitions[animationOptions.transition || "linear"],
+                onStop: animationOptions.onStop || function (e) { // 调用stop停止时的回调函数
+                    console.log('stop', e);
+                }, 
+                render: function(e) {
+                    if (me.getContext() == '2d') {
+                        ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+                    }
+                    console.log(e);
+                    me._getDrawer().drawMap(e);
+                    animationOptions.render && animationOptions.render(time);
+                }
+            });
+            timeline.start();
         }
 
         this.dispatchEvent('draw');
@@ -465,7 +463,7 @@ util.extend(Layer.prototype, {
             var data = this.getData();
 
             if (this._highlightElement) {
-                if (ctx.isPointInPath(paths[this._highlightElement.index], x, y)) {
+                if (ctx.isPointInPath(this._highlightElement.path, x, y)) {
                     return this._highlightElement;
                 } 
             }
@@ -476,7 +474,7 @@ util.extend(Layer.prototype, {
                     // bingo!
                     // console.log("bingo");
                     var data = this.getData();                   
-                    newHighlightElement = {index: i, data: data[i]};
+                    newHighlightElement = {data: data[i], path: paths[i]};
                     break;
                 }
             }

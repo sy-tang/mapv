@@ -167,9 +167,9 @@ SimpleDrawer.prototype.drawShapes = function(time) {
 
     for (var i = 0, len = data.length; i < len; i++) {
         var item = data[i];
-        if (item.px < 0 || item.px > ctx.canvas.width || item.py < 0 || item > ctx.canvas.height) {
-            continue;
-        }
+        // if (item.px < 0 || item.px > ctx.canvas.width || item.py < 0 || item > ctx.canvas.height) {
+        //     continue;
+        // }
         var path = new Path2D();
 
         var scale = drawOptions.scaleRange ? Math.sqrt(this.dataRange.getScale(item.count)) : 1;
@@ -380,37 +380,30 @@ SimpleDrawer.prototype.drawIconsWithFont = function(iconfont, text, time) {
 
     for (var i = 0, len = data.length; i < len; i++) {
         var item = data[i];
-        if (item.px < 0 || item.px > ctx.canvas.width || item.py < 0 || item > ctx.canvas.height) {
-            continue;
-        }
+        // if (item.px < 0 || item.px > ctx.canvas.width || item.py < 0 || item > ctx.canvas.height) {
+        //     continue;
+        // }
         var scale = drawOptions.scaleRange ? Math.sqrt(that.dataRange.getScale(item.count)) : 1;
 
-        // var scale = 1;
-        var icon = util.copy(drawOptions.icon);
+        var icon = drawOptions.icon;
         
-        if (drawOptions.scaleRange) {
-            icon.offsetX = icon.offsetX ? icon.offsetX * scale : 0;
-            icon.offsetY = icon.offsetY ? icon.offsetY * scale : 0;
-        }
-
         ctx.font = baseSize * scale + "px " + iconfont;
 
         var width = baseSize * scale * 0.8;
         var height = baseSize * scale;
 
         var pixelRatio = util.getPixelRatio(ctx);
-        var x = item.px - width / 2 - icon.offsetX,
-            y = item.py - height / 2 - icon.offsetY;
-
+        
+        ctx.save();
         ctx.scale(pixelRatio, pixelRatio);
-        ctx.fillStyle = item.color || icon.color;
-        ctx.fillText(text, item.px, item.py + height - 3 * scale);
+        ctx.fillStyle = item.color || icon.color || drawOptions.fillStyle;
+        ctx.fillText(text, item.px - width / 2, item.py + height - 3 * scale - height);
         ctx.restore();
 
         // add path for event trigger
         var path = new Path2D();
 
-        path.rect(item.px + baseSize * scale * 0.1, item.py, width, height);
+        path.rect(item.px + baseSize * scale * 0.1 - width / 2, item.py - height, width, height);
 
         // ctx.stroke(path);
 

@@ -1542,30 +1542,6 @@ util.extend(Layer.prototype, {
             }
         }
 
-        // bubble animation
-        if ((this.getDrawType() === 'bubble' || this.getDrawType() === 'simple') && this.getAnimation() && !this._animationTime) {
-            this._animationTime = true;
-            var timeline = this.timeline = new Animation({
-                duration: animationOptions.duration || 1000, // 动画时长, 单位毫秒
-                fps: animationOptions.fps || 30, // 每秒帧数
-                delay: animationOptions.delay || Animation.INFINITE, // 延迟执行时间，单位毫秒,如果delay为infinite则表示手动执行
-                transition: Transitions[animationOptions.transition || "linear"],
-                onStop: animationOptions.onStop || function (e) {
-                    // 调用stop停止时的回调函数
-                    console.log('stop', e);
-                },
-                render: function render(e) {
-                    if (me.getContext() == '2d') {
-                        ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
-                    }
-                    console.log(e);
-                    me._getDrawer().drawMap(e);
-                    animationOptions.render && animationOptions.render(time);
-                }
-            });
-            timeline.start();
-        }
-
         // simple icon animation
         if (this.getAnimation() && !this._animationTime && this.getDrawOptions().icon) {
             this._animationTime = true;
@@ -1596,6 +1572,29 @@ util.extend(Layer.prototype, {
                 }
             });
 
+            timeline.start();
+        }
+
+        if ((this.getDrawType() === 'bubble' || this.getDrawType() === 'simple') && this.getAnimation() && !this._animationTime) {
+            this._animationTime = true;
+            var timeline = this.timeline = new Animation({
+                duration: animationOptions.duration || 1000, // 动画时长, 单位毫秒
+                fps: animationOptions.fps || 30, // 每秒帧数
+                delay: animationOptions.delay || Animation.INFINITE, // 延迟执行时间，单位毫秒,如果delay为infinite则表示手动执行
+                transition: Transitions[animationOptions.transition || "linear"],
+                onStop: animationOptions.onStop || function (e) {
+                    // 调用stop停止时的回调函数
+                    console.log('stop', e);
+                },
+                render: function render(e) {
+                    if (me.getContext() == '2d') {
+                        ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+                    }
+                    console.log(e);
+                    me._getDrawer().drawMap(e);
+                    animationOptions.render && animationOptions.render(time);
+                }
+            });
             timeline.start();
         }
 
@@ -1847,7 +1846,7 @@ util.extend(Layer.prototype, {
             var data = this.getData();
 
             if (this._highlightElement) {
-                if (ctx.isPointInPath(paths[this._highlightElement.index], x, y)) {
+                if (ctx.isPointInPath(this._highlightElement.path, x, y)) {
                     return this._highlightElement;
                 }
             }
@@ -1858,7 +1857,7 @@ util.extend(Layer.prototype, {
                     // bingo!
                     // console.log("bingo");
                     var data = this.getData();
-                    newHighlightElement = { index: i, data: data[i] };
+                    newHighlightElement = { data: data[i], path: paths[i] };
                     break;
                 }
             }
@@ -4536,9 +4535,9 @@ SimpleDrawer.prototype.drawShapes = function (time) {
 
     for (var i = 0, len = data.length; i < len; i++) {
         var item = data[i];
-        if (item.px < 0 || item.px > ctx.canvas.width || item.py < 0 || item > ctx.canvas.height) {
-            continue;
-        }
+        // if (item.px < 0 || item.px > ctx.canvas.width || item.py < 0 || item > ctx.canvas.height) {
+        //     continue;
+        // }
         var path = new Path2D();
 
         var scale = drawOptions.scaleRange ? Math.sqrt(this.dataRange.getScale(item.count)) : 1;
@@ -4748,18 +4747,12 @@ SimpleDrawer.prototype.drawIconsWithFont = function (iconfont, text, time) {
 
     for (var i = 0, len = data.length; i < len; i++) {
         var item = data[i];
-        if (item.px < 0 || item.px > ctx.canvas.width || item.py < 0 || item > ctx.canvas.height) {
-            continue;
-        }
+        // if (item.px < 0 || item.px > ctx.canvas.width || item.py < 0 || item > ctx.canvas.height) {
+        //     continue;
+        // }
         var scale = drawOptions.scaleRange ? Math.sqrt(that.dataRange.getScale(item.count)) : 1;
 
-        // var scale = 1;
-        var icon = util.copy(drawOptions.icon);
-
-        if (drawOptions.scaleRange) {
-            icon.offsetX = icon.offsetX ? icon.offsetX * scale : 0;
-            icon.offsetY = icon.offsetY ? icon.offsetY * scale : 0;
-        }
+        var icon = drawOptions.icon;
 
         ctx.font = baseSize * scale + "px " + iconfont;
 
@@ -4767,18 +4760,17 @@ SimpleDrawer.prototype.drawIconsWithFont = function (iconfont, text, time) {
         var height = baseSize * scale;
 
         var pixelRatio = util.getPixelRatio(ctx);
-        var x = item.px - width / 2 - icon.offsetX,
-            y = item.py - height / 2 - icon.offsetY;
 
+        ctx.save();
         ctx.scale(pixelRatio, pixelRatio);
-        ctx.fillStyle = item.color || icon.color;
-        ctx.fillText(text, item.px, item.py + height - 3 * scale);
+        ctx.fillStyle = item.color || icon.color || drawOptions.fillStyle;
+        ctx.fillText(text, item.px - width / 2, item.py + height - 3 * scale - height);
         ctx.restore();
 
         // add path for event trigger
         var path = new Path2D();
 
-        path.rect(item.px + baseSize * scale * 0.1, item.py, width, height);
+        path.rect(item.px + baseSize * scale * 0.1 - width / 2, item.py - height, width, height);
 
         // ctx.stroke(path);
 
