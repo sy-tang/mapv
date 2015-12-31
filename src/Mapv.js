@@ -200,3 +200,11 @@ Mapv.prototype.addLayer = function(layer) {
         this._topLayer = layer;
     }
 }
+
+Mapv.prototype.clearAllLayer = function() {
+    var map = this.getMap();
+    while(this._layers.length > 0) {
+        var layer = this._layers.shift();
+        map.removeOverlay(layer.canvasLayer);
+    }
+}

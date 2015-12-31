@@ -49,12 +49,14 @@ gulp.task('copy', ['script'], function() {
 });
 
 gulp.task('copydemo', ['script'], function() {
+    // gulp.src("dist/Mapv*.js")
+    // .pipe(copy('/Users/tangshuyuan/Workspace/haizhi/GISMapWebView/js/', {
+    //     prefix: 1
+    // }));
     return gulp.src("dist/Mapv*.js")
     // .pipe(copy('demo/build/js/lib/', {
-    // .pipe(copy('/Users/tangshuyuan/Workspace/haizhi/bdp-vizlab/GISMapView/GISMapView/Mapv/', {
-    //     prefix: 1
-    // }))
     .pipe(copy('/Users/tangshuyuan/Workspace/haizhi/gis-web/', {
+    // .pipe(copy('/Users/tangshuyuan/Workspace/haizhi/', {
         prefix: 1
     }));
 });

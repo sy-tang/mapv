@@ -205,7 +205,7 @@ util.extend(Layer.prototype, {
                     if (me.getContext() == '2d') {
                         ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
                     }
-                    console.log(e);
+                    // console.log(e);
                     me._getDrawer().drawMap(e);
                     animationOptions.render && animationOptions.render(time);
                 }

@@ -1280,6 +1280,14 @@ Mapv.prototype.addLayer = function (layer) {
         this._topLayer = layer;
     }
 };
+
+Mapv.prototype.clearAllLayer = function () {
+    var map = this.getMap();
+    while (this._layers.length > 0) {
+        var layer = this._layers.shift();
+        map.removeOverlay(layer.canvasLayer);
+    }
+};
 /**
  * 一直覆盖在当前地图视野的Canvas对象
  *
@@ -1590,7 +1598,7 @@ util.extend(Layer.prototype, {
                     if (me.getContext() == '2d') {
                         ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
                     }
-                    console.log(e);
+                    // console.log(e);
                     me._getDrawer().drawMap(e);
                     animationOptions.render && animationOptions.render(time);
                 }
