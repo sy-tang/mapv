@@ -4541,6 +4541,10 @@ SimpleDrawer.prototype.drawShapes = function (time) {
 
     ctx.globalAlpha = time;
 
+    // scale size with map zoom
+    var zoomScale = Math.max(1 + (this.getMap().getZoom() - 6) * 0.2, 1);
+    console.log('map zoom: ' + this.getMap().getZoom() + ', zoomScale: ' + zoomScale);
+
     for (var i = 0, len = data.length; i < len; i++) {
         var item = data[i];
         // if (item.px < 0 || item.px > ctx.canvas.width || item.py < 0 || item > ctx.canvas.height) {
@@ -4551,6 +4555,8 @@ SimpleDrawer.prototype.drawShapes = function (time) {
         var scale = drawOptions.scaleRange ? Math.sqrt(this.dataRange.getScale(item.count)) : 1;
 
         scale *= time;
+
+        scale *= zoomScale;
 
         var radius = this.getRadius() * scale;
         var shape = item.shape || drawOptions.shape || 'circle';
@@ -4751,6 +4757,8 @@ SimpleDrawer.prototype.drawIconsWithFont = function (iconfont, text, time) {
     var drawOptions = this.getDrawOptions();
     var that = this;
 
+    drawOptions.size = drawOptions.size || 16;
+
     var baseSize = 16;
 
     for (var i = 0, len = data.length; i < len; i++) {
@@ -4758,7 +4766,7 @@ SimpleDrawer.prototype.drawIconsWithFont = function (iconfont, text, time) {
         // if (item.px < 0 || item.px > ctx.canvas.width || item.py < 0 || item > ctx.canvas.height) {
         //     continue;
         // }
-        var scale = drawOptions.scaleRange ? Math.sqrt(that.dataRange.getScale(item.count)) : 1;
+        var scale = drawOptions.scaleRange ? Math.sqrt(that.dataRange.getScale(item.count)) : drawOptions.size / baseSize;
 
         var icon = drawOptions.icon;
 
