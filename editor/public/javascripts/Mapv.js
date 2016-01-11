@@ -2998,8 +2998,6 @@ BubbleDrawer.prototype.drawMap = function (time) {
 
         isFinalFrame && this._elementPaths.push(path);
 
-        // 跳过需要highlight的元素，留到最后再画，确保不会被覆盖
-        if (highlightElement && highlightElement.index == i) continue;
         ctx.save();
         // ctx.clip(path);
 
@@ -3012,24 +3010,22 @@ BubbleDrawer.prototype.drawMap = function (time) {
         ctx.restore();
     }
 
-    // 最后再画需要highlight的元素
+    // 最后给highlight的元素加边框
     if (highlightElement) {
-        var highlightPath = this._elementPaths[highlightElement.index];
-        ctx.fill(highlightPath);
+        var highlightPath = highlightElement.path;
 
         if (drawOptions.highlightStrokeStyle) {
-            var highlightItem = highlightElement.data;
             ctx.save();
             ctx.strokeStyle = drawOptions.highlightStrokeStyle;
-            ctx.beginPath();
+            ctx.strokeWidth = drawOptions.highlightStrokeWidth || 1;
+            // var highlightItem = highlightElement.data;
+            // ctx.beginPath();
             // ctx.arc(highlightItem.px, highlightItem.py, this.dataRange.getSize(highlightItem.count),
             //         0, Math.PI * 2, false);
             // ctx.stroke();
             // ctx.closePath();
             ctx.stroke(highlightPath);
             ctx.restore();
-        } else if (drawOptions.strokeStyle) {
-            ctx.stroke(highlightPath);
         }
     }
 
@@ -4539,10 +4535,12 @@ SimpleDrawer.prototype.drawShapes = function (time) {
     var data = this.getLayer().getData();
     var ctx = this.getCtx();
 
+    var highlightElement = this.getHighlightElement();
+
     ctx.globalAlpha = time;
 
     // scale size with map zoom
-    var zoomScale = Math.max(1 + (this.getMap().getZoom() - 6) * 0.2, 1);
+    var zoomScale = Math.max(1 + (this.getMap().getZoom() - 6) * 0.2, 0.5);
     console.log('map zoom: ' + this.getMap().getZoom() + ', zoomScale: ' + zoomScale);
 
     for (var i = 0, len = data.length; i < len; i++) {
@@ -4584,9 +4582,11 @@ SimpleDrawer.prototype.drawShapes = function (time) {
 
             case 'circle':
             default:
-                path.moveTo(item.px, item.py);
+                // path.moveTo(item.px, item.py);
                 path.arc(item.px, item.py, radius, 0, 2 * Math.PI, false);
         }
+
+        isFinalFrame && this._elementPaths.push(path);
 
         ctx.save();
         if (item.color) {
@@ -4599,8 +4599,19 @@ SimpleDrawer.prototype.drawShapes = function (time) {
         }
 
         ctx.restore();
+    }
 
-        isFinalFrame && this._elementPaths.push(path);
+    // 最后给highlight的元素加边框
+    if (highlightElement) {
+        var highlightPath = highlightElement.path;
+
+        if (drawOptions.highlightStrokeStyle) {
+            ctx.save();
+            ctx.strokeStyle = drawOptions.highlightStrokeStyle;
+            ctx.lineWidth = drawOptions.highlightStrokeWidth || 1;
+            ctx.stroke(highlightPath);
+            ctx.restore();
+        }
     }
 };
 

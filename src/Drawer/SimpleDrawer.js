@@ -163,10 +163,12 @@ SimpleDrawer.prototype.drawShapes = function(time) {
     var data = this.getLayer().getData();
     var ctx = this.getCtx();
 
+    var highlightElement = this.getHighlightElement(); 
+
     ctx.globalAlpha = time;
 
     // scale size with map zoom
-    var zoomScale = Math.max(1 + (this.getMap().getZoom() - 6) * 0.2, 1);
+    var zoomScale = Math.max(1 + (this.getMap().getZoom() - 6) * 0.2, 0.5);
     console.log('map zoom: ' + this.getMap().getZoom() + ', zoomScale: ' + zoomScale);
 
     for (var i = 0, len = data.length; i < len; i++) {
@@ -208,9 +210,11 @@ SimpleDrawer.prototype.drawShapes = function(time) {
 
             case 'circle':
             default:
-                path.moveTo(item.px, item.py);
+                // path.moveTo(item.px, item.py);
                 path.arc(item.px, item.py, radius, 0, 2 * Math.PI, false);
         }
+
+        isFinalFrame && this._elementPaths.push(path);
 
         ctx.save();
         if (item.color) {
@@ -224,8 +228,21 @@ SimpleDrawer.prototype.drawShapes = function(time) {
 
         ctx.restore();
 
-        isFinalFrame && this._elementPaths.push(path);
     }
+
+    // 最后给highlight的元素加边框
+    if (highlightElement) {
+        var highlightPath = highlightElement.path;
+
+        if (drawOptions.highlightStrokeStyle) {
+            ctx.save();
+            ctx.strokeStyle = drawOptions.highlightStrokeStyle;
+            ctx.lineWidth = drawOptions.highlightStrokeWidth || 1;
+            ctx.stroke(highlightPath);
+            ctx.restore();
+        } 
+    }
+
 }
 
 // 绘制icon
