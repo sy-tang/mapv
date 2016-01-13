@@ -421,6 +421,8 @@ util.extend(Layer.prototype, {
                 }
                 this._max = Math.max(this._max, data[i].count);
                 this._min = Math.min(this._min, data[i].count);
+
+                data[i]._id = i;
             }
             this.draw();
         }
@@ -473,8 +475,7 @@ util.extend(Layer.prototype, {
                 if (ctx.isPointInPath(paths[i], x, y)) {
                     // bingo!
                     // console.log("bingo");
-                    var data = this.getData();                   
-                    newHighlightElement = {data: data[i], path: paths[i]};
+                    newHighlightElement = {data: paths[i].data, path: paths[i]};
                     break;
                 }
             }

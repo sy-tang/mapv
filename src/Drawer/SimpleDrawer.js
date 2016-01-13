@@ -173,9 +173,12 @@ SimpleDrawer.prototype.drawShapes = function(time) {
 
     for (var i = 0, len = data.length; i < len; i++) {
         var item = data[i];
-        // if (item.px < 0 || item.px > ctx.canvas.width || item.py < 0 || item > ctx.canvas.height) {
-        //     continue;
-        // }
+        if (item.px < 0 || item.px > ctx.canvas.width || item.py < 0 || item > ctx.canvas.height) {
+            if (highlightElement && highlightElement.data._id == item._id) { 
+                this._highlightElement = highlightElement = null;
+            }
+            continue;
+        }
         var path = new Path2D();
 
         var scale = drawOptions.scaleRange ? Math.sqrt(this.dataRange.getScale(item.count)) : 1;
@@ -214,7 +217,17 @@ SimpleDrawer.prototype.drawShapes = function(time) {
                 path.arc(item.px, item.py, radius, 0, 2 * Math.PI, false);
         }
 
-        isFinalFrame && this._elementPaths.push(path);
+        if (isFinalFrame) {
+            path.data = item;
+            this._elementPaths.push(path);
+            // reset highlightElement since there may be some element out of canvas
+            if (highlightElement && highlightElement.data._id == item._id) {
+                highlightElement.data = item;
+                highlightElement.path = path;
+                this._highlightElement = highlightElement;
+            }
+        }
+
 
         ctx.save();
         if (item.color) {
@@ -263,9 +276,9 @@ SimpleDrawer.prototype.drawIconsWithImage = function(image, time) {
 
     for (var i = 0, len = data.length; i < len; i++) {
         var item = data[i];
-        if (item.px < 0 || item.px > ctx.canvas.width || item.py < 0 || item > ctx.canvas.height) {
-            continue;
-        }
+        // if (item.px < 0 || item.px > ctx.canvas.width || item.py < 0 || item > ctx.canvas.height) {
+        //     continue;
+        // }
 
         var scale = drawOptions.scaleRange ? Math.sqrt(that.dataRange.getScale(item.count)) : 1;
 

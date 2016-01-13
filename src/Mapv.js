@@ -74,14 +74,17 @@ Mapv.prototype._initEvents = function() {
 
         var handler = that._getHandler(e.type);
 
+        console.time('find element');
         for (var i = 0; i < layers.length; i++) {
             var layer = layers[i];
             var elem = layer.findElementAtPoint(x, y);
             if (elem) { // 找到一个元素后就往下层搜寻
                 results.push(elem.data);
+                console.log('got it!');
                 break;
             }
         }
+        console.timeEnd('find element');
 
         // 当再次hover不到元素时，不执行回调
         if (e.type == 'mousemove' && elementsFound.length == 0 && results.length == 0)

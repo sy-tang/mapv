@@ -1154,15 +1154,18 @@ Mapv.prototype._initEvents = function () {
 
         var handler = that._getHandler(e.type);
 
+        console.time('find element');
         for (var i = 0; i < layers.length; i++) {
             var layer = layers[i];
             var elem = layer.findElementAtPoint(x, y);
             if (elem) {
                 // 找到一个元素后就往下层搜寻
                 results.push(elem.data);
+                console.log('got it!');
                 break;
             }
         }
+        console.timeEnd('find element');
 
         // 当再次hover不到元素时，不执行回调
         if (e.type == 'mousemove' && elementsFound.length == 0 && results.length == 0) return;
@@ -1812,6 +1815,8 @@ util.extend(Layer.prototype, {
                 }
                 this._max = Math.max(this._max, data[i].count);
                 this._min = Math.min(this._min, data[i].count);
+
+                data[i]._id = i;
             }
             this.draw();
         }
@@ -1864,8 +1869,7 @@ util.extend(Layer.prototype, {
                 if (ctx.isPointInPath(paths[i], x, y)) {
                     // bingo!
                     // console.log("bingo");
-                    var data = this.getData();
-                    newHighlightElement = { data: data[i], path: paths[i] };
+                    newHighlightElement = { data: paths[i].data, path: paths[i] };
                     break;
                 }
             }
@@ -4545,9 +4549,12 @@ SimpleDrawer.prototype.drawShapes = function (time) {
 
     for (var i = 0, len = data.length; i < len; i++) {
         var item = data[i];
-        // if (item.px < 0 || item.px > ctx.canvas.width || item.py < 0 || item > ctx.canvas.height) {
-        //     continue;
-        // }
+        if (item.px < 0 || item.px > ctx.canvas.width || item.py < 0 || item > ctx.canvas.height) {
+            if (highlightElement && highlightElement.data._id == item._id) {
+                this._highlightElement = highlightElement = null;
+            }
+            continue;
+        }
         var path = new Path2D();
 
         var scale = drawOptions.scaleRange ? Math.sqrt(this.dataRange.getScale(item.count)) : 1;
@@ -4586,7 +4593,16 @@ SimpleDrawer.prototype.drawShapes = function (time) {
                 path.arc(item.px, item.py, radius, 0, 2 * Math.PI, false);
         }
 
-        isFinalFrame && this._elementPaths.push(path);
+        if (isFinalFrame) {
+            path.data = item;
+            this._elementPaths.push(path);
+            // reset highlightElement since there may be some element out of canvas
+            if (highlightElement && highlightElement.data._id == item._id) {
+                highlightElement.data = item;
+                highlightElement.path = path;
+                this._highlightElement = highlightElement;
+            }
+        }
 
         ctx.save();
         if (item.color) {
@@ -4632,9 +4648,9 @@ SimpleDrawer.prototype.drawIconsWithImage = function (image, time) {
 
     for (var i = 0, len = data.length; i < len; i++) {
         var item = data[i];
-        if (item.px < 0 || item.px > ctx.canvas.width || item.py < 0 || item > ctx.canvas.height) {
-            continue;
-        }
+        // if (item.px < 0 || item.px > ctx.canvas.width || item.py < 0 || item > ctx.canvas.height) {
+        //     continue;
+        // }
 
         var scale = drawOptions.scaleRange ? Math.sqrt(that.dataRange.getScale(item.count)) : 1;
 
