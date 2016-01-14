@@ -1845,9 +1845,12 @@ util.extend(Layer.prototype, {
     highlightElement_changed: function highlightElement_changed() {
         // console.log("highlight element changed: %o", this._highlightElement);
         // 画icon暂时不重绘
-        if (!(this.getDrawType() == "simple" && this.getDrawOptions().icon)) {
-            this.draw(true);
-        }
+        if (this.getDrawOptions().highlightStyle /* && !(this.getDrawType() == "simple" && this.getDrawOptions().icon) */) {
+                // 高亮样式不需要重新计算布局
+                console.log("highlight redraw");
+                var remainLayout = true;
+                this.draw(remainLayout);
+            }
     },
 
     findElementAtPoint: function findElementAtPoint(x, y) {
@@ -4479,7 +4482,7 @@ SimpleDrawer.prototype.drawMap = function (time) {
             var radius = this.getRadius();
             for (var i = 0, len = data.length; i < len; i++) {
                 var item = data[i];
-                if (item.px < 0 || item.px > ctx.canvas.width || item.py < 0 || item > ctx.canvas.height) {
+                if (item.px < 0 || item.px > ctx.canvas.width || item.py < 0 || item.py > ctx.canvas.height) {
                     // console.log('out of canvas');
                     continue;
                 }
@@ -4549,10 +4552,7 @@ SimpleDrawer.prototype.drawShapes = function (time) {
 
     for (var i = 0, len = data.length; i < len; i++) {
         var item = data[i];
-        if (item.px < 0 || item.px > ctx.canvas.width || item.py < 0 || item > ctx.canvas.height) {
-            if (highlightElement && highlightElement.data._id == item._id) {
-                this._highlightElement = highlightElement = null;
-            }
+        if (item.px < 0 || item.px > ctx.canvas.width || item.py < 0 || item.py > ctx.canvas.height) {
             continue;
         }
         var path = new Path2D();
@@ -4618,13 +4618,20 @@ SimpleDrawer.prototype.drawShapes = function (time) {
     }
 
     // 最后给highlight的元素加边框
-    if (highlightElement) {
+    if (drawOptions.highlightStyle && highlightElement) {
+        var item = highlightElement.data;
+
+        if (item.px < 0 || item.px > ctx.canvas.width || item.py < 0 || item.py > ctx.canvas.height) {
+            console.log('highlightElement out of canvas');
+            return;
+        }
+
         var highlightPath = highlightElement.path;
 
-        if (drawOptions.highlightStrokeStyle) {
+        if (drawOptions.highlightStyle) {
             ctx.save();
-            ctx.strokeStyle = drawOptions.highlightStrokeStyle;
-            ctx.lineWidth = drawOptions.highlightStrokeWidth || 1;
+            ctx.strokeStyle = drawOptions.highlightStyle;
+            ctx.lineWidth = 2;
             ctx.stroke(highlightPath);
             ctx.restore();
         }
@@ -4784,42 +4791,91 @@ SimpleDrawer.prototype.drawIconsWithFont = function (iconfont, text, time) {
     var drawOptions = this.getDrawOptions();
     var that = this;
 
+    var highlightElement = this.getHighlightElement();
+
+    // scale size with map zoom
+    var zoomScale = Math.max(1 + (this.getMap().getZoom() - 6) * 0.1, 0.5);
+    console.log('map zoom: ' + this.getMap().getZoom() + ', zoomScale: ' + zoomScale);
+
     drawOptions.size = drawOptions.size || 16;
 
     var baseSize = 16;
 
     for (var i = 0, len = data.length; i < len; i++) {
         var item = data[i];
-        // if (item.px < 0 || item.px > ctx.canvas.width || item.py < 0 || item > ctx.canvas.height) {
-        //     continue;
-        // }
+        if (item.px < 0 || item.px > ctx.canvas.width || item.py < 0 || item.py > ctx.canvas.height) {
+            continue;
+        }
         var scale = drawOptions.scaleRange ? Math.sqrt(that.dataRange.getScale(item.count)) : drawOptions.size / baseSize;
+
+        scale *= zoomScale;
 
         var icon = drawOptions.icon;
 
-        ctx.font = baseSize * scale + "px " + iconfont;
-
-        var width = baseSize * scale * 0.8;
+        var width = baseSize * scale;
         var height = baseSize * scale;
 
         var pixelRatio = util.getPixelRatio(ctx);
 
         ctx.save();
+        ctx.font = baseSize * scale + "px " + iconfont;
         ctx.scale(pixelRatio, pixelRatio);
+
+        if (isFinalFrame) {
+            // add path for event trigger
+            var path = new Path2D();
+            path.rect(item.px - width * 0.6 / 2, item.py - height * 0.7, width * 0.6, height * 0.8);
+            // ctx.stroke(path);
+
+            path.data = item;
+            this._elementPaths.push(path);
+            // reset highlightElement since there may be some element out of canvas
+            if (highlightElement && highlightElement.data._id == item._id) {
+                highlightElement.data = item;
+                highlightElement.path = path;
+                this._highlightElement = highlightElement;
+            }
+        }
+
+        if (drawOptions.highlightStyle && highlightElement && highlightElement.data._id == item._id) {
+            // ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
+            // debugger;
+            ctx.restore();
+            continue;
+        }
+
         ctx.fillStyle = item.color || icon.color || drawOptions.fillStyle;
-        ctx.fillText(text, item.px - width / 2, item.py + height - 3 * scale - height);
+        ctx.fillText(text, item.px - width / 2, item.py + 0.1 * height);
 
-        // add path for event trigger
-        var path = new Path2D();
+        ctx.beginPath();
+        ctx.arc(item.px, item.py, 2, 0, 2 * Math.PI, false);
+        ctx.closePath();
+        ctx.fill();
 
-        path.data = item;
+        ctx.restore();
+    }
 
-        path.rect(item.px + baseSize * scale * 0.1 - width / 2, item.py - height, width, height);
+    if (drawOptions.highlightStyle && highlightElement) {
+        var item = highlightElement.data;
+        if (item.px < 0 || item.px > ctx.canvas.width || item.py < 0 || item.py > ctx.canvas.height) {
+            return;
+        }
+        var scale = drawOptions.scaleRange ? Math.sqrt(that.dataRange.getScale(item.count)) : drawOptions.size / baseSize;
 
-        ctx.stroke(path);
+        scale *= zoomScale;
 
-        isFinalFrame && that._elementPaths.push(path);
+        var icon = drawOptions.icon;
 
+        var width = baseSize * scale;
+        var height = baseSize * scale;
+
+        var pixelRatio = util.getPixelRatio(ctx);
+
+        ctx.save();
+        ctx.font = baseSize * scale + "px " + iconfont;
+        ctx.scale(pixelRatio, pixelRatio);
+        ctx.fillStyle = drawOptions.highlightStyle;
+        ctx.fillText(text, item.px - width / 2, item.py + 0.1 * height);
         ctx.restore();
     }
 };
