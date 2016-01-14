@@ -4808,16 +4808,19 @@ SimpleDrawer.prototype.drawIconsWithFont = function (iconfont, text, time) {
         ctx.scale(pixelRatio, pixelRatio);
         ctx.fillStyle = item.color || icon.color || drawOptions.fillStyle;
         ctx.fillText(text, item.px - width / 2, item.py + height - 3 * scale - height);
-        ctx.restore();
 
         // add path for event trigger
         var path = new Path2D();
 
+        path.data = item;
+
         path.rect(item.px + baseSize * scale * 0.1 - width / 2, item.py - height, width, height);
 
-        // ctx.stroke(path);
+        ctx.stroke(path);
 
         isFinalFrame && that._elementPaths.push(path);
+
+        ctx.restore();
     }
 };
 
