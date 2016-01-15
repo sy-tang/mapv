@@ -379,10 +379,12 @@ util.extend(Layer.prototype, {
             }
 
             // 对气泡从大到小进行排序，确保小气泡总是画在大气泡的上面
-            if (this.getDrawType() === 'bubble') {
+            if (this.getDrawType() === 'bubble' || this.getDrawType() === 'simple') {
+                console.time('sort data');
                 data.sort(function(a, b) {
                     return b.count - a.count;
                 });
+                console.timeEnd('sort data');
             }
 
             if (this.getDataType() === "polyline" && this.getAnimation()) {
@@ -451,9 +453,9 @@ util.extend(Layer.prototype, {
     highlightElement_changed: function() {
         // console.log("highlight element changed: %o", this._highlightElement);
         // 画icon暂时不重绘
-        if (this.getDrawOptions().highlightStyle /* && !(this.getDrawType() == "simple" && this.getDrawOptions().icon) */) {
+        if (!(this.getDrawType() == "simple" && this.getDrawOptions().icon)) {
             // 高亮样式不需要重新计算布局
-            console.log("highlight redraw");
+            // console.log("highlight redraw");
             var remainLayout = true;
             this.draw(remainLayout);
         }

@@ -1154,18 +1154,18 @@ Mapv.prototype._initEvents = function () {
 
         var handler = that._getHandler(e.type);
 
-        console.time('find element');
+        // console.time('find element');
         for (var i = 0; i < layers.length; i++) {
             var layer = layers[i];
             var elem = layer.findElementAtPoint(x, y);
             if (elem) {
                 // 找到一个元素后就往下层搜寻
                 results.push(elem.data);
-                console.log('got it!');
+                // console.log('got it!');
                 break;
             }
         }
-        console.timeEnd('find element');
+        // console.timeEnd('find element');
 
         // 当再次hover不到元素时，不执行回调
         if (e.type == 'mousemove' && elementsFound.length == 0 && results.length == 0) return;
@@ -1773,10 +1773,12 @@ util.extend(Layer.prototype, {
             }
 
             // 对气泡从大到小进行排序，确保小气泡总是画在大气泡的上面
-            if (this.getDrawType() === 'bubble') {
+            if (this.getDrawType() === 'bubble' || this.getDrawType() === 'simple') {
+                console.time('sort data');
                 data.sort(function (a, b) {
                     return b.count - a.count;
                 });
+                console.timeEnd('sort data');
             }
 
             if (this.getDataType() === "polyline" && this.getAnimation()) {
@@ -1845,12 +1847,12 @@ util.extend(Layer.prototype, {
     highlightElement_changed: function highlightElement_changed() {
         // console.log("highlight element changed: %o", this._highlightElement);
         // 画icon暂时不重绘
-        if (this.getDrawOptions().highlightStyle /* && !(this.getDrawType() == "simple" && this.getDrawOptions().icon) */) {
-                // 高亮样式不需要重新计算布局
-                console.log("highlight redraw");
-                var remainLayout = true;
-                this.draw(remainLayout);
-            }
+        if (!(this.getDrawType() == "simple" && this.getDrawOptions().icon)) {
+            // 高亮样式不需要重新计算布局
+            // console.log("highlight redraw");
+            var remainLayout = true;
+            this.draw(remainLayout);
+        }
     },
 
     findElementAtPoint: function findElementAtPoint(x, y) {
@@ -3891,7 +3893,7 @@ util.extend(HeatmapDrawer.prototype, {
             offsetDistance = 10000;
         } else {
             offsetDistance = 0;
-            console.log(r2);
+            // console.log(r2);
             var grad = ctx.createRadialGradient(r2 - offsetDistance, r2 - offsetDistance, 0, r2 - offsetDistance, r2 - offsetDistance, r);
             /* 设定各个位置的颜色 */
             grad.addColorStop(0, 'rgba(0, 0, 0, 1)');
@@ -3953,8 +3955,8 @@ util.extend(HeatmapDrawer.prototype, {
 
             var boundary = this.getDrawOptions().boundary || this._circle.width + 50;
 
-            console.time('drawImageData');
-            console.log('data', this._data.length, this._data);
+            console.time('drawHeatMap');
+            // console.log('data', this._data.length, this._data);
             for (var i = 0, len = this._data.length, p; i < len; i++) {
                 p = this._data[i];
                 if (p.px < -boundary || p.py < -boundary || p.px > ctx.canvas.width + boundary || p.py > ctx.canvas.height + boundary) {}
@@ -3967,7 +3969,7 @@ util.extend(HeatmapDrawer.prototype, {
                 ctx.globalAlpha = Math.max(p.count / max, minOpacity === undefined ? 0.05 : minOpacity);
                 ctx.drawImage(this._circle, p.px - this._r, p.py - this._r);
             }
-            console.timeEnd('drawImageData');
+            console.timeEnd('drawHeatMap');
         }
 
         // colorize the heatmap, using opacity value of each pixel to get the right color from our gradient
@@ -4544,11 +4546,12 @@ SimpleDrawer.prototype.drawShapes = function (time) {
 
     var highlightElement = this.getHighlightElement();
 
-    ctx.globalAlpha = time;
-
     // scale size with map zoom
-    var zoomScale = Math.max(1 + (this.getMap().getZoom() - 6) * 0.2, 0.5);
-    console.log('map zoom: ' + this.getMap().getZoom() + ', zoomScale: ' + zoomScale);
+    var zoomScale = 1 + (this.getMap().getZoom() - 6) * 0.15;
+    // keep scale in [0.5, 2];
+    zoomScale = Math.max(Math.min(zoomScale, 2), 0.5);
+
+    // console.log('map zoom: ' + this.getMap().getZoom() + ', zoomScale: ' + zoomScale);
 
     for (var i = 0, len = data.length; i < len; i++) {
         var item = data[i];
@@ -4564,6 +4567,7 @@ SimpleDrawer.prototype.drawShapes = function (time) {
         scale *= zoomScale;
 
         var radius = this.getRadius() * scale;
+
         var shape = item.shape || drawOptions.shape || 'circle';
 
         switch (shape) {
@@ -4573,6 +4577,8 @@ SimpleDrawer.prototype.drawShapes = function (time) {
                 break;
 
             case 'triangle':
+                radius *= 1.5;
+
                 path.moveTo(item.px, item.py - radius);
                 path.lineTo(item.px - radius * Math.sqrt(3) / 2, item.py + radius / 2);
                 path.lineTo(item.px + radius * Math.sqrt(3) / 2, item.py + radius / 2);
@@ -4593,6 +4599,8 @@ SimpleDrawer.prototype.drawShapes = function (time) {
                 path.arc(item.px, item.py, radius, 0, 2 * Math.PI, false);
         }
 
+        item.radius = radius;
+
         if (isFinalFrame) {
             path.data = item;
             this._elementPaths.push(path);
@@ -4601,13 +4609,13 @@ SimpleDrawer.prototype.drawShapes = function (time) {
                 highlightElement.data = item;
                 highlightElement.path = path;
                 this._highlightElement = highlightElement;
+                continue;
             }
         }
 
         ctx.save();
-        if (item.color) {
-            ctx.fillStyle = item.color;
-        }
+        ctx.fillStyle = item.color || drawOptions.fillStyle;
+        ctx.globalAlpha = (drawOptions.fillAlpha || 1) * time;
 
         ctx.fill(path);
         if (drawOptions.strokeStyle) {
@@ -4618,23 +4626,95 @@ SimpleDrawer.prototype.drawShapes = function (time) {
     }
 
     // 最后给highlight的元素加边框
-    if (drawOptions.highlightStyle && highlightElement) {
+    if (highlightElement) {
         var item = highlightElement.data;
 
         if (item.px < 0 || item.px > ctx.canvas.width || item.py < 0 || item.py > ctx.canvas.height) {
-            console.log('highlightElement out of canvas');
+            // console.log('highlightElement out of canvas');
             return;
         }
 
         var highlightPath = highlightElement.path;
 
-        if (drawOptions.highlightStyle) {
-            ctx.save();
-            ctx.strokeStyle = drawOptions.highlightStyle;
-            ctx.lineWidth = 2;
-            ctx.stroke(highlightPath);
-            ctx.restore();
+        var shape = item.shape || drawOptions.shape || 'circle';
+        ctx.save();
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
+        ctx.strokeStyle = 'rgba(0, 0, 0, 0.15)';
+        ctx.lineWidth = item.radius;
+
+        var path = new Path2D();
+        var radius = item.radius + 1;
+        switch (shape) {
+            // 某些android机型（如三星g3），不能正确stroke...真是蛋疼.
+            case 'rect':
+                path.moveTo(item.px - radius, item.px - radius);
+                path.rect(item.px - radius, item.py - radius, radius * 2, radius * 2);
+                ctx.fill(path);
+                // ctx.stroke(path);
+                radius += item.radius;
+                path.moveTo(item.px - radius, item.px - radius);
+                path.rect(item.px - radius, item.py - radius, radius * 2, radius * 2);
+                ctx.fillStyle = ctx.strokeStyle;
+                ctx.fill(path);
+                break;
+
+            // 三角形和菱形不能直接用stroke的方式画最外层的边框（边框会出现断点）
+            case 'triangle':
+                path.moveTo(item.px, item.py - radius);
+                path.lineTo(item.px - radius * Math.sqrt(3) / 2, item.py + radius / 2);
+                path.lineTo(item.px + radius * Math.sqrt(3) / 2, item.py + radius / 2);
+                path.lineTo(item.px, item.py - radius);
+                ctx.fill(path);
+
+                path = new Path2D();
+                radius = item.radius * 2;
+
+                path.moveTo(item.px, item.py - radius);
+                path.lineTo(item.px - radius * Math.sqrt(3) / 2, item.py + radius / 2);
+                path.lineTo(item.px + radius * Math.sqrt(3) / 2, item.py + radius / 2);
+                path.lineTo(item.px, item.py - radius);
+
+                ctx.fillStyle = ctx.strokeStyle;
+                ctx.fill(path);
+
+                break;
+
+            case 'diamond':
+                path.moveTo(item.px, item.py - 1.5 * radius);
+                path.lineTo(item.px - radius, item.py);
+                path.lineTo(item.px, item.py + 1.5 * radius);
+                path.lineTo(item.px + radius, item.py);
+                path.lineTo(item.px, item.py - 1.5 * radius);
+
+                ctx.fill(path);
+
+                path = new Path2D();
+                radius = item.radius * 2;
+
+                path.moveTo(item.px, item.py - 1.5 * radius);
+                path.lineTo(item.px - radius, item.py);
+                path.lineTo(item.px, item.py + 1.5 * radius);
+                path.lineTo(item.px + radius, item.py);
+                path.lineTo(item.px, item.py - 1.5 * radius);
+
+                ctx.fillStyle = ctx.strokeStyle;
+                ctx.fill(path);
+
+                break;
+
+            case 'circle':
+            default:
+                path.arc(item.px, item.py, radius, 0, 2 * Math.PI, false);
+                ctx.fill(path);
+                ctx.stroke(path);
         }
+
+        ctx.restore();
+
+        ctx.save();
+        ctx.fillStyle = item.color || drawOptions.fillStyle;
+        ctx.fill(highlightPath);
+        ctx.restore();
     }
 };
 
@@ -4794,8 +4874,12 @@ SimpleDrawer.prototype.drawIconsWithFont = function (iconfont, text, time) {
     var highlightElement = this.getHighlightElement();
 
     // scale size with map zoom
-    var zoomScale = Math.max(1 + (this.getMap().getZoom() - 6) * 0.1, 0.5);
-    console.log('map zoom: ' + this.getMap().getZoom() + ', zoomScale: ' + zoomScale);
+    var zoomScale = 1 + (this.getMap().getZoom() - 6) * 0.15;
+
+    // keep scale in [0.5, 2];
+    zoomScale = Math.max(Math.min(zoomScale, 2), 0.5);
+
+    // console.log('map zoom: ' + this.getMap().getZoom() + ', zoomScale: ' + zoomScale);
 
     drawOptions.size = drawOptions.size || 16;
 
@@ -4837,25 +4921,24 @@ SimpleDrawer.prototype.drawIconsWithFont = function (iconfont, text, time) {
             }
         }
 
-        if (drawOptions.highlightStyle && highlightElement && highlightElement.data._id == item._id) {
-            // ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
-            // debugger;
+        if (highlightElement && highlightElement.data._id == item._id) {
             ctx.restore();
             continue;
         }
 
         ctx.fillStyle = item.color || icon.color || drawOptions.fillStyle;
+        ctx.globalAlpha = drawOptions.fillAlpha || 1;
         ctx.fillText(text, item.px - width / 2, item.py + 0.1 * height);
 
-        ctx.beginPath();
-        ctx.arc(item.px, item.py, 2, 0, 2 * Math.PI, false);
-        ctx.closePath();
-        ctx.fill();
+        // ctx.beginPath();
+        // ctx.arc(item.px, item.py, 2, 0, 2 * Math.PI, false);
+        // ctx.closePath();
+        // ctx.fill();
 
         ctx.restore();
     }
 
-    if (drawOptions.highlightStyle && highlightElement) {
+    if (highlightElement) {
         var item = highlightElement.data;
         if (item.px < 0 || item.px > ctx.canvas.width || item.py < 0 || item.py > ctx.canvas.height) {
             return;
@@ -4863,6 +4946,8 @@ SimpleDrawer.prototype.drawIconsWithFont = function (iconfont, text, time) {
         var scale = drawOptions.scaleRange ? Math.sqrt(that.dataRange.getScale(item.count)) : drawOptions.size / baseSize;
 
         scale *= zoomScale;
+
+        scale *= 1.5;
 
         var icon = drawOptions.icon;
 
@@ -4874,7 +4959,7 @@ SimpleDrawer.prototype.drawIconsWithFont = function (iconfont, text, time) {
         ctx.save();
         ctx.font = baseSize * scale + "px " + iconfont;
         ctx.scale(pixelRatio, pixelRatio);
-        ctx.fillStyle = drawOptions.highlightStyle;
+        ctx.fillStyle = item.color || icon.color || drawOptions.fillStyle;
         ctx.fillText(text, item.px - width / 2, item.py + 0.1 * height);
         ctx.restore();
     }

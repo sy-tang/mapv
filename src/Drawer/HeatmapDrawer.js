@@ -136,7 +136,7 @@ util.extend(HeatmapDrawer.prototype, {
 
         } else {
             offsetDistance = 0;
-            console.log(r2);
+            // console.log(r2);
             var grad  = ctx.createRadialGradient(r2 - offsetDistance, r2 - offsetDistance, 0, r2 - offsetDistance, r2 - offsetDistance, r);
             /* 设定各个位置的颜色 */
             grad.addColorStop(0, 'rgba(0, 0, 0, 1)');
@@ -199,8 +199,8 @@ util.extend(HeatmapDrawer.prototype, {
 
             var boundary = this.getDrawOptions().boundary || this._circle.width + 50;
 
-            console.time('drawImageData');
-            console.log('data', this._data.length, this._data);
+            console.time('drawHeatMap');
+            // console.log('data', this._data.length, this._data);
             for (var i = 0, len = this._data.length, p; i < len; i++) {
                 p = this._data[i];
                 if (p.px < -boundary || p.py < -boundary || p.px > ctx.canvas.width + boundary || p.py > ctx.canvas.height + boundary) {
@@ -213,7 +213,7 @@ util.extend(HeatmapDrawer.prototype, {
                 ctx.globalAlpha = Math.max(p.count / max, minOpacity === undefined ? 0.05 : minOpacity);
                 ctx.drawImage(this._circle, p.px - this._r, p.py - this._r);
             }
-            console.timeEnd('drawImageData');
+            console.timeEnd('drawHeatMap');
         }
 
         // colorize the heatmap, using opacity value of each pixel to get the right color from our gradient
