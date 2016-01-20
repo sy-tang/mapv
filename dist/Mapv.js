@@ -1109,6 +1109,8 @@ function Mapv(options) {
 
     this._container = this.getMap().getContainer();
 
+    // this._initHighlightLayer();
+
     this._initEvents();
 
     //this._initDrawScale();
@@ -1138,6 +1140,38 @@ Mapv.prototype.drawTypeControl_changed = function () {
     }
 };
 
+// Mapv.prototype.highlightElement_changed = function() {
+//     console.log('highlight changed:', this._highlightElement);
+//     if (this._highlightLayer) {
+//         var ctx = this._highlightLayer.canvas.getContext('2d'),
+//             pixelRatio = util.getPixelRatio(ctx);
+
+//         ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+
+//         if (this._highlightElement) {
+//             var path = this._highlightElement.path;
+//             ctx.save();
+//             ctx.scale(pixelRatio, pixelRatio);
+//             ctx.fill(path);
+//             ctx.restore();
+//         }
+
+//     }
+// };
+
+// Mapv.prototype._initHighlightLayer = function() {
+// this._highlightLayer = new CanvasLayer({
+//     map: this.getMap(),
+//     zIndex: '999',
+//     update: function () {
+//         // draw highlight
+//         console.log('highlight update');
+
+//     },
+//     elementTag: "canvas"
+// });
+// }
+
 Mapv.prototype._initEvents = function () {
     var bmap = this.getMap();
     var that = this;
@@ -1158,10 +1192,23 @@ Mapv.prototype._initEvents = function () {
         for (var i = 0; i < layers.length; i++) {
             var layer = layers[i];
             var elem = layer.findElementAtPoint(x, y);
+
             if (elem) {
                 // 找到一个元素后就往下层搜寻
                 results.push(elem.data);
                 // console.log('got it!');
+
+                // if (that._highlightElement !== elem) {
+                //     that._highlightElement = elem;
+                //     that.notify("highlightElement");
+                // }
+
+                // 取消其他图层的高亮状态
+                for (var j = 0; j < layers.length; j++) {
+                    if (i == j) continue;
+                    layers[j].clearHighlight();
+                }
+
                 break;
             }
         }
@@ -1847,11 +1894,18 @@ util.extend(Layer.prototype, {
     highlightElement_changed: function highlightElement_changed() {
         // console.log("highlight element changed: %o", this._highlightElement);
         // 画icon暂时不重绘
-        if (!(this.getDrawType() == "simple" && this.getDrawOptions().icon)) {
+        if (true || !(this.getDrawType() == "simple" && this.getDrawOptions().icon)) {
             // 高亮样式不需要重新计算布局
             // console.log("highlight redraw");
             var remainLayout = true;
             this.draw(remainLayout);
+        }
+    },
+
+    clearHighlight: function clearHighlight() {
+        if (this._highlightElement !== null) {
+            this._highlightElement = null;
+            this.notify('highlightElement');
         }
     },
 
