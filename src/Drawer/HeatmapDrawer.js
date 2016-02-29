@@ -106,7 +106,6 @@ util.extend(HeatmapDrawer.prototype, {
     },
 
     radius: function (r) {
-        console.log('create circle');
         // create a grayscale blurred circle image that we'll use for drawing points
         var circle = this._circle = document.createElement('canvas'),
             ctx = circle.getContext('2d');

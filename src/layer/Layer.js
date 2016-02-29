@@ -11,7 +11,7 @@ function Layer (options) {
         ctx: null,
         animationCtx: null,
         mapv: null,
-        paneName: 'labelPane',
+        paneName: 'mapPane',
         map: null,
         context: '2d',
         data: [],
@@ -80,6 +80,14 @@ util.extend(Layer.prototype, {
             this.setAnimationCtx(this.animationLayer.getContainer().getContext(this.getContext()));
         }
 
+    },
+
+    show: function () {
+        this.canvasLayer && this.canvasLayer.show();
+    },
+
+    hide: function () {
+        this.canvasLayer && this.canvasLayer.hide();
     },
 
     draw: function (remainLayout) {

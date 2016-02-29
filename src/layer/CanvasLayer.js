@@ -11,7 +11,7 @@
     
 function CanvasLayer(options){
     this.options = options || {};
-    this.paneName = this.options.paneName || 'labelPane';
+    this.paneName = this.options.paneName || 'mapPane';
     this.zIndex = this.options.zIndex || 0;
     this.context = this.options.context || '2d';
     this._map = options.map;

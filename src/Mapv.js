@@ -99,6 +99,10 @@ Mapv.prototype._initEvents = function() {
     var elementsFound = [];
 
     var listener = function(e) {
+        var target = e.target || e.srcElement;
+        if (target.tagName.toLowerCase() !== 'canvas')
+            return;
+        
         var rect = this.getBoundingClientRect(),
             x = e.clientX - rect.left,
             y = e.clientY - rect.top;
@@ -190,6 +194,9 @@ Mapv.prototype._initEvents = function() {
 
     if (this._getHandler('hover')) {
         bmap.getContainer().addEventListener('mousemove', listener);
+        bmap.getContainer().addEventListener('mouseleave', function(e) {
+            that._getHandler('hover')([], e);
+        });
     }
 
 }
