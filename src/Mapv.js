@@ -102,7 +102,7 @@ Mapv.prototype._initEvents = function() {
         var target = e.target || e.srcElement;
         if (target.tagName.toLowerCase() !== 'canvas')
             return;
-        
+
         var rect = this.getBoundingClientRect(),
             x = e.clientX - rect.left,
             y = e.clientY - rect.top;
@@ -115,6 +115,10 @@ Mapv.prototype._initEvents = function() {
         // console.time('find element');
         for (var i = 0; i < layers.length; i++) {
             var layer = layers[i];
+
+            if (layer.getContext() === 'webgl')
+                continue;
+            
             var elem = layer.findElementAtPoint(x, y);
             
             if (elem) { // 找到一个元素后就往下层搜寻
@@ -195,7 +199,9 @@ Mapv.prototype._initEvents = function() {
     if (this._getHandler('hover')) {
         bmap.getContainer().addEventListener('mousemove', listener);
         bmap.getContainer().addEventListener('mouseleave', function(e) {
-            that._getHandler('hover')([], e);
+            var handler = that._getHandler('hover');
+            if (handler && typeof handler === 'function')
+                handler([], e);
         });
     }
 
