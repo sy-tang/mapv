@@ -1109,8 +1109,6 @@ function Mapv(options) {
 
     this._container = this.getMap().getContainer();
 
-    // this._initHighlightLayer();
-
     this._initEvents();
 
     //this._initDrawScale();
@@ -1140,38 +1138,6 @@ Mapv.prototype.drawTypeControl_changed = function () {
     }
 };
 
-// Mapv.prototype.highlightElement_changed = function() {
-//     console.log('highlight changed:', this._highlightElement);
-//     if (this._highlightLayer) {
-//         var ctx = this._highlightLayer.canvas.getContext('2d'),
-//             pixelRatio = util.getPixelRatio(ctx);
-
-//         ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
-
-//         if (this._highlightElement) {
-//             var path = this._highlightElement.path;
-//             ctx.save();
-//             ctx.scale(pixelRatio, pixelRatio);
-//             ctx.fill(path);
-//             ctx.restore();
-//         }
-
-//     }
-// };
-
-// Mapv.prototype._initHighlightLayer = function() {
-// this._highlightLayer = new CanvasLayer({
-//     map: this.getMap(),
-//     zIndex: '999',
-//     update: function () {
-//         // draw highlight
-//         console.log('highlight update');
-
-//     },
-//     elementTag: "canvas"
-// });
-// }
-
 Mapv.prototype._initEvents = function () {
     var bmap = this.getMap();
     var that = this;
@@ -1179,6 +1145,9 @@ Mapv.prototype._initEvents = function () {
     var elementsFound = [];
 
     var listener = function listener(e) {
+        var target = e.target || e.srcElement;
+        if (e.type !== 'tap' && target.tagName.toLowerCase() !== 'canvas') return;
+
         var rect = this.getBoundingClientRect(),
             x = e.clientX - rect.left,
             y = e.clientY - rect.top;
@@ -1191,17 +1160,15 @@ Mapv.prototype._initEvents = function () {
         // console.time('find element');
         for (var i = 0; i < layers.length; i++) {
             var layer = layers[i];
+
+            if (layer.getContext() === 'webgl') continue;
+
             var elem = layer.findElementAtPoint(x, y);
 
             if (elem) {
                 // 找到一个元素后就往下层搜寻
                 results.push(elem.data);
                 // console.log('got it!');
-
-                // if (that._highlightElement !== elem) {
-                //     that._highlightElement = elem;
-                //     that.notify("highlightElement");
-                // }
 
                 // 取消其他图层的高亮状态
                 for (var j = 0; j < layers.length; j++) {
@@ -1270,6 +1237,10 @@ Mapv.prototype._initEvents = function () {
 
     if (this._getHandler('hover')) {
         bmap.getContainer().addEventListener('mousemove', listener);
+        bmap.getContainer().addEventListener('mouseleave', function (e) {
+            var handler = that._getHandler('hover');
+            if (handler && typeof handler === 'function') handler([], e);
+        });
     }
 };
 
@@ -1353,7 +1324,7 @@ Mapv.prototype.clearAllLayer = function () {
 
 function CanvasLayer(options) {
     this.options = options || {};
-    this.paneName = this.options.paneName || 'labelPane';
+    this.paneName = this.options.paneName || 'mapPane';
     this.zIndex = this.options.zIndex || 0;
     this.context = this.options.context || '2d';
     this._map = options.map;
@@ -1386,16 +1357,6 @@ CanvasLayer.prototype.adjustSize = function () {
     if (this.context == 'webgl') {
         pixelRatio = 1;
     } else {
-        // pixelRatio = (function(context) {
-        //         var backingStore = context.backingStorePixelRatio ||
-        //                     context.webkitBackingStorePixelRatio ||
-        //                     context.mozBackingStorePixelRatio ||
-        //                     context.msBackingStorePixelRatio ||
-        //                     context.oBackingStorePixelRatio ||
-        //                     context.backingStorePixelRatio || 1;
-
-        //         return (window.devicePixelRatio || 1) / backingStore;
-        //     })(canvas.getContext('2d'));
         pixelRatio = util.getPixelRatio(canvas.getContext('2d'));
     }
 
@@ -1431,7 +1392,6 @@ CanvasLayer.prototype.show = function () {
 
 CanvasLayer.prototype.hide = function () {
     this.canvas.style.display = "none";
-    // this._map.removeOverlay(this);
 };
 
 CanvasLayer.prototype.setZIndex = function (zIndex) {
@@ -1456,7 +1416,7 @@ function Layer(options) {
         ctx: null,
         animationCtx: null,
         mapv: null,
-        paneName: 'labelPane',
+        paneName: 'mapPane',
         map: null,
         context: '2d',
         data: [],
@@ -1524,6 +1484,14 @@ util.extend(Layer.prototype, {
 
             this.setAnimationCtx(this.animationLayer.getContainer().getContext(this.getContext()));
         }
+    },
+
+    show: function show() {
+        this.canvasLayer && this.canvasLayer.show();
+    },
+
+    hide: function hide() {
+        this.canvasLayer && this.canvasLayer.hide();
     },
 
     draw: function draw(remainLayout) {
@@ -1860,7 +1828,7 @@ util.extend(Layer.prototype, {
 
             for (var i = 0; i < data.length; i++) {
                 if (data[i].count === undefined || data[i].count === null) {
-                    data[i].count = 1;
+                    data[i].count = 0;
                 }
                 this._max = Math.max(this._max, data[i].count);
                 this._min = Math.min(this._min, data[i].count);
@@ -3918,7 +3886,6 @@ util.extend(HeatmapDrawer.prototype, {
     },
 
     radius: function radius(r) {
-        console.log('create circle');
         // create a grayscale blurred circle image that we'll use for drawing points
         var circle = this._circle = document.createElement('canvas'),
             ctx = circle.getContext('2d');
@@ -4013,9 +3980,9 @@ util.extend(HeatmapDrawer.prototype, {
             // console.log('data', this._data.length, this._data);
             for (var i = 0, len = this._data.length, p; i < len; i++) {
                 p = this._data[i];
-                if (p.px < -boundary || p.py < -boundary || p.px > ctx.canvas.width + boundary || p.py > ctx.canvas.height + boundary) {}
-                //continue;
-
+                if (!p.count || p.px < -boundary || p.py < -boundary || p.px > ctx.canvas.width + boundary || p.py > ctx.canvas.height + boundary) {
+                    continue;
+                }
                 // if (p.count < this.masker.min || p.count > this.masker.max) {
                 //     continue;
                 // }

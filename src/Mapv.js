@@ -29,8 +29,6 @@ function Mapv(options) {
 
     this._container = this.getMap().getContainer();
 
-    // this._initHighlightLayer();
-
     this._initEvents();
 
     //this._initDrawScale();
@@ -60,38 +58,6 @@ Mapv.prototype.drawTypeControl_changed = function () {
     }
 }
 
-// Mapv.prototype.highlightElement_changed = function() {
-//     console.log('highlight changed:', this._highlightElement);
-//     if (this._highlightLayer) {
-//         var ctx = this._highlightLayer.canvas.getContext('2d'),
-//             pixelRatio = util.getPixelRatio(ctx);
-
-//         ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
-        
-//         if (this._highlightElement) {
-//             var path = this._highlightElement.path;
-//             ctx.save();
-//             ctx.scale(pixelRatio, pixelRatio);
-//             ctx.fill(path);
-//             ctx.restore();
-//         }
-
-//     }
-// };
-
-// Mapv.prototype._initHighlightLayer = function() {
-    // this._highlightLayer = new CanvasLayer({
-    //     map: this.getMap(),
-    //     zIndex: '999',
-    //     update: function () {
-    //         // draw highlight
-    //         console.log('highlight update');
-
-    //     },
-    //     elementTag: "canvas"
-    // });
-// }
-
 Mapv.prototype._initEvents = function() {
     var bmap = this.getMap();
     var that = this;
@@ -100,7 +66,7 @@ Mapv.prototype._initEvents = function() {
 
     var listener = function(e) {
         var target = e.target || e.srcElement;
-        if (target.tagName.toLowerCase() !== 'canvas')
+        if (e.type !== 'tap' && target.tagName.toLowerCase() !== 'canvas')
             return;
 
         var rect = this.getBoundingClientRect(),
@@ -118,17 +84,12 @@ Mapv.prototype._initEvents = function() {
 
             if (layer.getContext() === 'webgl')
                 continue;
-            
+
             var elem = layer.findElementAtPoint(x, y);
             
             if (elem) { // 找到一个元素后就往下层搜寻
                 results.push(elem.data);
                 // console.log('got it!');
-
-                // if (that._highlightElement !== elem) {
-                //     that._highlightElement = elem;
-                //     that.notify("highlightElement");
-                // }
 
                 // 取消其他图层的高亮状态
                 for (var j = 0; j < layers.length; j++) {

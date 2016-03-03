@@ -202,8 +202,8 @@ util.extend(HeatmapDrawer.prototype, {
             // console.log('data', this._data.length, this._data);
             for (var i = 0, len = this._data.length, p; i < len; i++) {
                 p = this._data[i];
-                if (p.px < -boundary || p.py < -boundary || p.px > ctx.canvas.width + boundary || p.py > ctx.canvas.height + boundary) {
-                    //continue;
+                if (!p.count || p.px < -boundary || p.py < -boundary || p.px > ctx.canvas.width + boundary || p.py > ctx.canvas.height + boundary) {
+                    continue;
                 }
                 // if (p.count < this.masker.min || p.count > this.masker.max) {
                 //     continue;

@@ -427,7 +427,7 @@ util.extend(Layer.prototype, {
 
             for (var i = 0; i < data.length; i++) {
                 if (data[i].count === undefined || data[i].count === null) {
-                    data[i].count = 1;
+                    data[i].count = 0;
                 }
                 this._max = Math.max(this._max, data[i].count);
                 this._min = Math.min(this._min, data[i].count);
