@@ -461,7 +461,7 @@ util.extend(Layer.prototype, {
     highlightElement_changed: function() {
         // console.log("highlight element changed: %o", this._highlightElement);
         // 画icon暂时不重绘
-        if (true || !(this.getDrawType() == "simple" && this.getDrawOptions().icon)) {
+        if (!(this.getDrawType() == "simple" && this.getDrawOptions().icon)) {
             // 高亮样式不需要重新计算布局
             // console.log("highlight redraw");
             var remainLayout = true;

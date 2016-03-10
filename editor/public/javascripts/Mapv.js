@@ -1862,7 +1862,7 @@ util.extend(Layer.prototype, {
     highlightElement_changed: function highlightElement_changed() {
         // console.log("highlight element changed: %o", this._highlightElement);
         // 画icon暂时不重绘
-        if (true || !(this.getDrawType() == "simple" && this.getDrawOptions().icon)) {
+        if (!(this.getDrawType() == "simple" && this.getDrawOptions().icon)) {
             // 高亮样式不需要重新计算布局
             // console.log("highlight redraw");
             var remainLayout = true;
@@ -5047,9 +5047,9 @@ SimpleDrawer.prototype.drawWebglPoint = function () {
     vs = gl.createShader(gl.VERTEX_SHADER);
     fs = gl.createShader(gl.FRAGMENT_SHADER);
 
-    vs_s = ['attribute vec4 a_Position;', 'attribute float a_PointSize;', 'void main() {', 'gl_Position = a_Position;', 'gl_PointSize = a_PointSize;', '}'].join('');
+    vs_s = ['attribute vec4 a_Position;', 'attribute vec4 a_Color;', 'attribute float a_PointSize;', 'varying vec4 v_Color;', 'void main() {', 'gl_Position = a_Position;', 'v_Color = a_Color;', 'gl_PointSize = a_PointSize;', '}'].join('');
 
-    fs_s = ['precision mediump float;', 'uniform vec4 u_FragColor;', 'void main() {', 'gl_FragColor = u_FragColor;', '}'].join('');
+    fs_s = ['precision mediump float;', 'varying vec4 v_Color;', 'void main() {', 'gl_FragColor = v_Color;', '}'].join('');
 
     var program = gl.createProgram();
     gl.shaderSource(vs, vs_s);
@@ -5073,7 +5073,15 @@ SimpleDrawer.prototype.drawWebglPoint = function () {
     var halfCanvasWidth = gl.canvas.width / 2;
     var halfCanvasHeight = gl.canvas.height / 2;
 
+    // used to pick color rgba
+    var tmpCanvas = document.createElement('canvas');
+    var tmpCtx = tmpCanvas.getContext('2d');
+    tmpCanvas.width = 1;
+    tmpCanvas.height = 1;
+
+    // create vertices buffer
     var verticesData = [];
+    var colorsData = [];
     var count = 0;
     for (var i = 0; i < data.length; i++) {
         var item = data[i];
@@ -5085,10 +5093,17 @@ SimpleDrawer.prototype.drawWebglPoint = function () {
             continue;
         }
         verticesData.push(x, y);
+
+        tmpCtx.fillStyle = item.color || this.getDrawOptions().fillStyle;
+        tmpCtx.fillRect(0, 0, 1, 1);
+        var colored = tmpCtx.getImageData(0, 0, 1, 1).data;
+        colorsData.push(colored[0] / 255, colored[1] / 255, colored[2] / 255, colored[3] / 255);
+
         count++;
     }
 
     var vertices = new Float32Array(verticesData);
+    var colors = new Float32Array(colorsData);
     var n = count; // The number of vertices
 
     // Create a buffer object
@@ -5114,17 +5129,29 @@ SimpleDrawer.prototype.drawWebglPoint = function () {
     // Enable the assignment to a_Position variable
     gl.enableVertexAttribArray(a_Position);
 
+    var colorBuffer = gl.createBuffer();
+    if (!colorBuffer) {
+        console.log('Failed to create the buffer object');
+        return -1;
+    }
+
+    gl.bindBuffer(gl.ARRAY_BUFFER, colorBuffer);
+    gl.bufferData(gl.ARRAY_BUFFER, colors, gl.STATIC_DRAW);
+
+    var a_Color = gl.getAttribLocation(program, 'a_Color');
+    if (a_Color < 0) {
+        console.log('Failed to get the storage location of a_Color');
+        return -1;
+    }
+    gl.vertexAttribPointer(a_Color, 4, gl.FLOAT, false, 0, 0);
+    gl.enableVertexAttribArray(a_Color);
+
     gl.vertexAttrib1f(a_PointSize, this.getRadius());
 
-    var tmpCanvas = document.createElement('canvas');
-    var tmpCtx = tmpCanvas.getContext('2d');
-    tmpCanvas.width = 1;
-    tmpCanvas.height = 1;
-    tmpCtx.fillStyle = this.getDrawOptions().fillStyle;
-    tmpCtx.fillRect(0, 0, 1, 1);
-    var colored = tmpCtx.getImageData(0, 0, 1, 1).data;
+    gl.enable(gl.BLEND);
+    gl.blendEquation(gl.FUNC_SUBTRACT);
+    gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_COLOR);
 
-    gl.uniform4f(uFragColor, colored[0] / 255, colored[1] / 255, colored[2] / 255, colored[3] / 255);
     gl.drawArrays(gl.POINTS, 0, n);
 };
 
