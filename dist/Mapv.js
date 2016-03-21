@@ -1163,6 +1163,19 @@ Mapv.prototype._initEvents = function () {
 
             if (layer.getContext() === 'webgl') continue;
 
+            // used for debug: draw the touch point
+            // if (i == 0) {
+            //     var ctx = layer.getCtx();
+            //     var pixelRatio = util.getPixelRatio(ctx);
+            //     ctx.save();
+            //     ctx.scale(pixelRatio, pixelRatio);
+            //     ctx.moveTo(x, y);
+            //     ctx.fillStyle = 'black';
+            //     ctx.arc(x, y, 2, 0, 2 * Math.PI, false);
+            //     ctx.fill();
+            //     ctx.restore();
+            // }
+
             var elem = layer.findElementAtPoint(x, y);
 
             if (elem) {
@@ -1309,6 +1322,13 @@ Mapv.prototype.clearAllLayer = function () {
         map.removeOverlay(layer.canvasLayer);
     }
 };
+
+Mapv.prototype.highlight = function (layerIndex, pointIndex) {
+    var layer = this._layers[layerIndex];
+    if (layer) {
+        layer.highlight(pointIndex);
+    }
+};
 /**
  * 一直覆盖在当前地图视野的Canvas对象
  *
@@ -1434,7 +1454,6 @@ function Layer(options) {
     }, options));
 
     // hold the element drawed in the layer that need to highlight
-    // struct: {index: }
     this._highlightElement = null;
 
     this._id = Math.random();
@@ -1874,6 +1893,15 @@ util.extend(Layer.prototype, {
         if (this._highlightElement !== null) {
             this._highlightElement = null;
             this.notify('highlightElement');
+        }
+    },
+
+    highlight: function highlight(pointIndex) {
+        var drawer = this._getDrawer();
+        if (drawer) {
+            var data = this.getData();
+            this._highlightElement = { data: data[pointIndex] };
+            this.notify("highlightElement");
         }
     },
 
@@ -4593,7 +4621,7 @@ SimpleDrawer.prototype.drawShapes = function (time) {
 
         switch (shape) {
             case 'rect':
-                path.moveTo(item.px - radius, item.px - radius);
+                path.moveTo(item.px - radius, item.py - radius);
                 path.rect(item.px - radius, item.py - radius, radius * 2, radius * 2);
                 break;
 
@@ -4668,12 +4696,12 @@ SimpleDrawer.prototype.drawShapes = function (time) {
         switch (shape) {
             // 某些android机型（如三星g3），不能正确stroke...真是蛋疼.
             case 'rect':
-                path.moveTo(item.px - radius, item.px - radius);
+                path.moveTo(item.px - radius, item.py - radius);
                 path.rect(item.px - radius, item.py - radius, radius * 2, radius * 2);
                 ctx.fill(path);
                 // ctx.stroke(path);
                 radius += item.radius;
-                path.moveTo(item.px - radius, item.px - radius);
+                path.moveTo(item.px - radius, item.py - radius);
                 path.rect(item.px - radius, item.py - radius, radius * 2, radius * 2);
                 ctx.fillStyle = ctx.strokeStyle;
                 ctx.fill(path);

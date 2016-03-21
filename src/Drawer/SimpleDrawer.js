@@ -191,7 +191,7 @@ SimpleDrawer.prototype.drawShapes = function(time) {
 
         switch(shape) {
             case 'rect': 
-                path.moveTo(item.px - radius, item.px - radius);
+                path.moveTo(item.px - radius, item.py - radius);
                 path.rect(item.px - radius, item.py - radius, radius * 2, radius * 2);
                 break;
 
@@ -267,12 +267,12 @@ SimpleDrawer.prototype.drawShapes = function(time) {
         switch(shape) {
             // 某些android机型（如三星g3），不能正确stroke...真是蛋疼.
             case 'rect': 
-                path.moveTo(item.px - radius, item.px - radius);
+                path.moveTo(item.px - radius, item.py - radius);
                 path.rect(item.px - radius, item.py - radius, radius * 2, radius * 2);
                 ctx.fill(path);
                 // ctx.stroke(path);
                 radius += item.radius;
-                path.moveTo(item.px - radius, item.px - radius);
+                path.moveTo(item.px - radius, item.py - radius);
                 path.rect(item.px - radius, item.py - radius, radius * 2, radius * 2);
                 ctx.fillStyle = ctx.strokeStyle;
                 ctx.fill(path);

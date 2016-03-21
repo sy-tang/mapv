@@ -85,6 +85,19 @@ Mapv.prototype._initEvents = function() {
             if (layer.getContext() === 'webgl')
                 continue;
 
+            // used for debug: draw the touch point
+            // if (i == 0) {
+            //     var ctx = layer.getCtx();
+            //     var pixelRatio = util.getPixelRatio(ctx);
+            //     ctx.save();
+            //     ctx.scale(pixelRatio, pixelRatio);
+            //     ctx.moveTo(x, y);
+            //     ctx.fillStyle = 'black';
+            //     ctx.arc(x, y, 2, 0, 2 * Math.PI, false);
+            //     ctx.fill();
+            //     ctx.restore();
+            // }
+
             var elem = layer.findElementAtPoint(x, y);
             
             if (elem) { // 找到一个元素后就往下层搜寻
@@ -230,5 +243,12 @@ Mapv.prototype.clearAllLayer = function() {
     while(this._layers.length > 0) {
         var layer = this._layers.shift();
         map.removeOverlay(layer.canvasLayer);
+    }
+}
+
+Mapv.prototype.highlight = function(layerIndex, pointIndex) {
+    var layer = this._layers[layerIndex];
+    if (layer) {
+        layer.highlight(pointIndex);
     }
 }

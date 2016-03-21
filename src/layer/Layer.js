@@ -29,7 +29,6 @@ function Layer (options) {
     }, options));
 
     // hold the element drawed in the layer that need to highlight
-    // struct: {index: }
     this._highlightElement = null;  
 
     this._id = Math.random();
@@ -68,7 +67,12 @@ util.extend(Layer.prototype, {
             elementTag: "canvas"
         });
 
-        this.setCtx(this.canvasLayer.getContainer().getContext(this.getContext()));
+        var context = this.getContext;
+        if (context === 'webgl') {
+            this.setCtx(this.canvasLayer.getContainer().getContext(context, {preserveDrawingBuffer: this.getPreserveDrawingBuffer()}));
+        } else {
+            this.setCtx(this.canvasLayer.getContainer().getContext(context));
+        }
 
         if (this.getAnimation() && this.getDataType() == 'polyline') {
             this.animationLayer = new CanvasLayer({
@@ -474,6 +478,15 @@ util.extend(Layer.prototype, {
             this._highlightElement = null;
             this.notify('highlightElement');
         }     
+    },
+
+    highlight: function(pointIndex) {
+        var drawer = this._getDrawer();
+        if (drawer) {
+            var data = this.getData();
+            this._highlightElement = {data: data[pointIndex]};
+            this.notify("highlightElement");
+        }
     },
 
     findElementAtPoint: function(x, y) {
