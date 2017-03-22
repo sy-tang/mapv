@@ -49,6 +49,7 @@ Mapv使用canvas开发，支持现在被称为“现代”浏览器, 通常兼�
 [![百度慧眼](./asset/user/huiyan.png)](http://huiyan.baidu.com)
 [![百度交通云](./asset/user/jiaotong.png)](http://jiaotong.baidu.com/)
 [![百度地图开放平台](./asset/user/lbsyun.png)](http://lbsyun.baidu.com/)
+[![海致BDP](./asset/user/haizhi_bdp.png)](https://bdp.cn/home.html)
 
 ## Contqct us
 邮箱: <a href="mailto:mapv@baidu.com">mapv@baidu.com</a>
